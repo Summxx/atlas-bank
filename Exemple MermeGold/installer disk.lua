@@ -1,6 +1,6 @@
 -- Atlas Bank Installer Disk
 
-local githubBaseUrl = "https://raw.githubusercontent.com/VOTRE_USER/VOTRE_REPO/main/Exemple%20MermeGold"
+local githubBaseUrl = "https://raw.githubusercontent.com/Summxx/atlas-bank/main/Exemple%20MermeGold"
 
 local files = {
 	bankapi = githubBaseUrl.."/bankapi.lua",

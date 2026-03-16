@@ -2,7 +2,7 @@
 -- wget URL_DE_INSTALLER installer.lua
 -- puis lancez : installer
 
-local installerDiskUrl = "https://raw.githubusercontent.com/VOTRE_USER/VOTRE_REPO/main/Exemple%20MermeGold/installer%20disk.lua"
+local installerDiskUrl = "https://raw.githubusercontent.com/Summxx/atlas-bank/main/Exemple%20MermeGold/installer%20disk.lua"
 
 local diskdrive = peripheral.find("drive")
 while (not diskdrive.isDiskPresent()) do
