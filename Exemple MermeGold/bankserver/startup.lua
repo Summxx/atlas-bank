@@ -6,6 +6,7 @@ local defaultAssets = {
 	netherite_scrap = {
 		id = "atlas:netherite_scrap",
 		name = {fr="Netherite Scrap", en="Netherite Scrap"},
+		itemLabel = "Netherite Scrap",
 		basePrice = 180,
 		fluctuationPercent = 12,
 		depositFactor = 0.96,
@@ -18,6 +19,7 @@ local defaultAssets = {
 	peridot = {
 		id = "atlas:peridot",
 		name = {fr="Peridot", en="Peridot"},
+		itemLabel = "Peridot",
 		basePrice = 72,
 		fluctuationPercent = 20,
 		depositFactor = 0.95,
@@ -30,6 +32,7 @@ local defaultAssets = {
 	sapphire = {
 		id = "atlas:sapphire",
 		name = {fr="Saphire", en="Sapphire"},
+		itemLabel = "Saphire",
 		basePrice = 110,
 		fluctuationPercent = 18,
 		depositFactor = 0.94,
@@ -42,6 +45,7 @@ local defaultAssets = {
 	ruby = {
 		id = "atlas:ruby",
 		name = {fr="Rubis", en="Ruby"},
+		itemLabel = "Rubis",
 		basePrice = 135,
 		fluctuationPercent = 18,
 		depositFactor = 0.94,
@@ -54,6 +58,7 @@ local defaultAssets = {
 	unobtainium = {
 		id = "atlas:unobtainium",
 		name = {fr="UnObtainium", en="Unobtainium"},
+		itemLabel = "UnObtainium",
 		basePrice = 520,
 		fluctuationPercent = 10,
 		depositFactor = 0.92,
@@ -310,6 +315,8 @@ local function quoteAsset(assetId, asset)
 	return {
 		id = assetId,
 		name = resolveAssetName(asset),
+		itemId = asset.itemId,
+		itemLabel = asset.itemLabel or resolveAssetName(asset),
 		stock = stock,
 		targetStock = target,
 		referencePrice = referencePrice,

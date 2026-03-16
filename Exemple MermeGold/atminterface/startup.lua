@@ -7,6 +7,11 @@ local shrekbox = require("shrekbox")
 local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
+local inventoryConfig = {
+	depositSide = "top",
+	vaultSide = "back",
+	outputSide = "bottom"
+}
 
 local function hasMethod(object, methodName)
 	return object ~= nil and type(object[methodName]) == "function"
@@ -89,6 +94,13 @@ local localization = {
 		close = "Fermer",
 		operation_done = "Operation enregistree",
 		operation_error = "Operation refusee",
+		error_missing_inventory = "Inventaire ATM manquant",
+		error_missing_items = "Objets insuffisants dans le depot",
+		error_output_blocked = "Sortie ATM indisponible",
+		error_vault_blocked = "Reserve ATM indisponible",
+		error_notenoughbalance = "Solde insuffisant",
+		error_asset_stock = "Reserve publique insuffisante",
+		error_partial_move = "Transfert ATM incomplet",
 		buy_price = "Achat banque",
 		sell_price = "Retrait banque",
 		stock = "Reserve",
@@ -99,8 +111,9 @@ local localization = {
 			"1. Placez-vous a droite du terminal pour etre detecte.",
 			"2. Creez votre compte si necessaire.",
 			"3. Consultez ensuite votre solde et les cours du marche.",
-			"4. Touchez un actif a gauche pour voir ses details.",
-			"5. Utilisez Veille pour revenir a l'ecran principal."
+			"4. Deposez vos objets dans le container du haut.",
+			"5. Touchez un actif a gauche pour voir ses details.",
+			"6. Les retraits sortent vers le container du bas."
 		},
 		assist = "Touchez un bouton pour continuer.",
 		currency = serverData.currencyLabel or "Credits"
@@ -146,6 +159,13 @@ local localization = {
 		close = "Close",
 		operation_done = "Operation recorded",
 		operation_error = "Operation rejected",
+		error_missing_inventory = "ATM inventory missing",
+		error_missing_items = "Not enough items in deposit inventory",
+		error_output_blocked = "ATM output unavailable",
+		error_vault_blocked = "ATM vault unavailable",
+		error_notenoughbalance = "Insufficient balance",
+		error_asset_stock = "Public reserve is too low",
+		error_partial_move = "ATM transfer incomplete",
 		buy_price = "Bank buy",
 		sell_price = "Withdraw",
 		stock = "Reserve",
@@ -156,8 +176,9 @@ local localization = {
 			"1. Stand on the right side of the terminal to be detected.",
 			"2. Create your account if needed.",
 			"3. Then check your balance and market rates.",
-			"4. Touch an asset on the left to see details.",
-			"5. Use Sleep to return to the main screen."
+			"4. Put your items in the top deposit inventory.",
+			"5. Touch an asset on the left to see details.",
+			"6. Withdrawals are sent to the bottom output inventory."
 		},
 		assist = "Touch a button to continue.",
 		currency = serverData.currencyLabel or "Credits"
@@ -342,6 +363,113 @@ local function sendPlayerMessage(playerName, text)
 	pcall(function()
 		chatBox.sendMessageToPlayer(text, playerName, serverData.bankName or "Atlas Bank", "<>")
 	end)
+end
+
+local function getInventory(side)
+	local inventory = peripheral.wrap(side)
+	if (inventory == nil or not hasMethod(inventory, "list")) then
+		return nil
+	end
+	return inventory
+end
+
+local function getInventoryName(side)
+	local inventory = peripheral.wrap(side)
+	if (inventory == nil) then
+		return nil
+	end
+	local ok, name = pcall(peripheral.getName, inventory)
+	if (ok and type(name) == "string") then
+		return name
+	end
+	return side
+end
+
+local function normalizeItemToken(value)
+	value = string.lower(tostring(value or ""))
+	value = string.gsub(value, "[%s_%-%.:]", "")
+	return value
+end
+
+local function getItemDetail(inventory, slot, basic)
+	if (inventory == nil) then
+		return basic
+	end
+	if (hasMethod(inventory, "getItemDetail")) then
+		local ok, detail = pcall(inventory.getItemDetail, slot)
+		if (ok and type(detail) == "table") then
+			return detail
+		end
+	end
+	return basic
+end
+
+local function assetMatchesItem(quote, basic, detail)
+	local wantedId = normalizeItemToken(quote and quote.itemId or "")
+	local wantedLabel = normalizeItemToken(quote and (quote.itemLabel or quote.name) or "")
+	local itemName = normalizeItemToken((detail and detail.name) or (basic and basic.name) or "")
+	local itemShortName = string.match(((detail and detail.name) or (basic and basic.name) or ""), "([^:]+)$") or itemName
+	itemShortName = normalizeItemToken(itemShortName)
+	local displayName = normalizeItemToken((detail and detail.displayName) or "")
+
+	if (wantedId ~= "" and (itemName == wantedId or itemShortName == wantedId)) then
+		return true
+	end
+	if (wantedLabel ~= "") then
+		if (displayName == wantedLabel or itemShortName == wantedLabel) then
+			return true
+		end
+		if (string.find(displayName, wantedLabel, 1, true) ~= nil) then
+			return true
+		end
+		if (string.find(itemShortName, wantedLabel, 1, true) ~= nil) then
+			return true
+		end
+	end
+	return false
+end
+
+local function countMatchingItems(inventory, quote)
+	if (inventory == nil) then
+		return 0
+	end
+	local total = 0
+	for slot, basic in pairs(inventory.list()) do
+		local detail = getItemDetail(inventory, slot, basic)
+		if (assetMatchesItem(quote, basic, detail)) then
+			total = total + (basic.count or 0)
+		end
+	end
+	return total
+end
+
+local function moveMatchingItems(fromInventory, destinationName, quote, wantedQuantity)
+	if (fromInventory == nil or destinationName == nil or not hasMethod(fromInventory, "pushItems")) then
+		return 0
+	end
+	local moved = 0
+	local remaining = math.max(0, math.floor(tonumber(wantedQuantity) or 0))
+	if (remaining <= 0) then
+		return 0
+	end
+
+	for slot, basic in pairs(fromInventory.list()) do
+		if (remaining <= 0) then
+			break
+		end
+		local detail = getItemDetail(fromInventory, slot, basic)
+		if (assetMatchesItem(quote, basic, detail)) then
+			local movedNow = 0
+			local ok, result = pcall(fromInventory.pushItems, destinationName, slot, remaining)
+			if (ok and type(result) == "number") then
+				movedNow = result
+			end
+			moved = moved + movedNow
+			remaining = remaining - movedNow
+		end
+	end
+
+	return moved
 end
 
 local function colorFromName(name)
@@ -610,8 +738,19 @@ local function drawMarketPage()
 		writeAt(detailX + 2, listY + 12, t("graph"), theme.text, theme.card)
 		drawGraph(detailX + 2, listY + 14, detailW - 4, math.max(5, listH - 17), state.history[quote.id] or {})
 		if (state.accountKey ~= nil) then
-			roundedButton("deposit_asset", detailX + 2, listY + listH - 8, math.max(14, math.floor((detailW - 8) / 2)), t("deposit_asset"), theme.success, theme.successText)
-			roundedButton("withdraw_asset", detailX + 4 + math.max(14, math.floor((detailW - 8) / 2)), listY + listH - 8, math.max(14, math.floor((detailW - 8) / 2)), t("withdraw_asset"), theme.primary, theme.primaryText)
+			local buttonWidth = math.max(14, math.floor((detailW - 8) / 2))
+			if (quote.allowDeposit) then
+				roundedButton("deposit_asset", detailX + 2, listY + listH - 8, buttonWidth, t("deposit_asset"), theme.success, theme.successText)
+			else
+				fillRoundedRect(detailX + 2, listY + listH - 8, buttonWidth, 4, theme.muted, 3)
+				writeAt(detailX + 2 + math.floor((buttonWidth - #t("deposit_asset")) / 2), listY + listH - 7, t("deposit_asset"), theme.cardDark, nil)
+			end
+			if (quote.allowWithdraw) then
+				roundedButton("withdraw_asset", detailX + 4 + buttonWidth, listY + listH - 8, buttonWidth, t("withdraw_asset"), theme.primary, theme.primaryText)
+			else
+				fillRoundedRect(detailX + 4 + buttonWidth, listY + listH - 8, buttonWidth, 4, theme.muted, 3)
+				writeAt(detailX + 4 + buttonWidth + math.floor((buttonWidth - #t("withdraw_asset")) / 2), listY + listH - 7, t("withdraw_asset"), theme.cardDark, nil)
+			end
 		end
 	else
 		writeAt(detailX + 2, listY + 4, trimText(t("select_asset"), detailW - 4), theme.sub, theme.card)
@@ -732,6 +871,67 @@ local function setFlashMessage(text, success)
 	}
 end
 
+local function executeDepositOperation(quote, quantity)
+	local depositInventory = getInventory(inventoryConfig.depositSide)
+	local vaultInventory = getInventory(inventoryConfig.vaultSide)
+	local depositName = getInventoryName(inventoryConfig.depositSide)
+	local vaultName = getInventoryName(inventoryConfig.vaultSide)
+
+	if (depositInventory == nil or vaultInventory == nil or depositName == nil or vaultName == nil) then
+		return false, t("error_missing_inventory")
+	end
+
+	local moved = moveMatchingItems(depositInventory, vaultName, quote, quantity)
+	if (moved <= 0) then
+		return false, t("error_missing_items")
+	end
+
+	local success, message = bankapi.depositAsset(state.accountKey, quote.id, moved)
+	if (not success) then
+		moveMatchingItems(vaultInventory, depositName, quote, moved)
+		return false, message or t("operation_error")
+	end
+
+	return true, (message or t("operation_done")) .. " x" .. tostring(moved)
+end
+
+local function executeWithdrawOperation(quote, quantity)
+	local vaultInventory = getInventory(inventoryConfig.vaultSide)
+	local outputInventory = getInventory(inventoryConfig.outputSide)
+	local vaultName = getInventoryName(inventoryConfig.vaultSide)
+	local outputName = getInventoryName(inventoryConfig.outputSide)
+
+	if (vaultInventory == nil or outputInventory == nil or vaultName == nil or outputName == nil) then
+		return false, t("error_missing_inventory")
+	end
+	if (quantity > (quote.maxWithdraw or 0)) then
+		return false, t("error_asset_stock")
+	end
+	if (state.account == nil or tonumber(state.account.balance or 0) < (tonumber(quote.withdrawPrice or 0) * quantity)) then
+		return false, t("error_notenoughbalance")
+	end
+	if (countMatchingItems(vaultInventory, quote) < quantity) then
+		return false, t("error_vault_blocked")
+	end
+
+	local moved = moveMatchingItems(vaultInventory, outputName, quote, quantity)
+	if (moved <= 0) then
+		return false, t("error_output_blocked")
+	end
+	if (moved < quantity) then
+		moveMatchingItems(outputInventory, vaultName, quote, moved)
+		return false, t("error_partial_move")
+	end
+
+	local success, message = bankapi.withdrawAsset(state.accountKey, quote.id, quantity)
+	if (not success) then
+		moveMatchingItems(outputInventory, vaultName, quote, quantity)
+		return false, message or t("operation_error")
+	end
+
+	return true, (message or t("operation_done")) .. " x" .. tostring(quantity)
+end
+
 local function performPendingOperation()
 	local quote = selectedQuote()
 	local quantity = tonumber(state.pendingQuantity)
@@ -744,9 +944,9 @@ local function performPendingOperation()
 
 	local success, message
 	if (state.pendingOperation == "deposit") then
-		success, message = bankapi.depositAsset(state.accountKey, quote.id, quantity)
+		success, message = executeDepositOperation(quote, quantity)
 	else
-		success, message = bankapi.withdrawAsset(state.accountKey, quote.id, quantity)
+		success, message = executeWithdrawOperation(quote, quantity)
 	end
 
 	refreshPlayerAndAccount()
