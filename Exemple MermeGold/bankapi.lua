@@ -1,22 +1,22 @@
 -- Bank API V4
  
 local backgroundColor = colors.black
-local panelColor = colors.gray
-local panelEdgeColor = colors.lightGray
+local panelColor = colors.black
+local panelEdgeColor = colors.gray
 local buttonShadowColor = colors.black
 local buttonTextColor = colors.white
 local grayedOutColor = colors.lightGray
-local specialTextColor = colors.cyan
+local specialTextColor = colors.white
 local titleTextColor = colors.white
 
-local buttonColor = colors.blue
-local secondaryButtonColor = colors.cyan
+local buttonColor = colors.gray
+local secondaryButtonColor = colors.lightGray
 
 local acceptButtonColor = colors.green
 local acceptSecondaryColor = colors.lime
 
 local cancelButtonColor = colors.red
-local cancelSecondaryColor = colors.pink
+local cancelSecondaryColor = colors.brown
  
 local bankServerID = 0
 local readingPosX = 0
@@ -217,12 +217,31 @@ local function drawBox(background, foreground, x, y, w, h)
 		term.write(" ")
 	end
 end
- 
+
 local function drawBackground()
 	term.setBackgroundColor(backgroundColor)
 	term.clear()
 end
- 
+
+local function fill(x, y, w, h, color)
+	term.setBackgroundColor(color)
+	for i=y, y+h-1 do
+		term.setCursorPos(x, i)
+		term.write(string.rep(" ", w))
+	end
+end
+
+local function drawHeader(title)
+	local scrW, scrH = term.getSize()
+	fill(1, 1, scrW, 2, colors.black)
+	term.setCursorPos(math.floor(scrW/2-string.len(title)/2), 1)
+	term.setTextColor(titleTextColor)
+	term.write(title)
+	term.setCursorPos(2, 2)
+	term.setTextColor(grayedOutColor)
+	term.write(string.rep("-", math.max(1, scrW-3)))
+end
+
 function drawButton(primary, secondary, textColor, x, y, w, text)
 	term.setCursorPos(x, y)
 	term.setBackgroundColor(primary)
@@ -367,7 +386,8 @@ function transactionInfoScreen(log)
 	local scrW, scrH = term.getSize()
  
 	drawBackground()
-	drawBox(panelEdgeColor, panelColor, 2, 2, scrW-2, math.min(10, scrH-2))
+	drawHeader(serverData.bankName or "Atlas Bank")
+	drawBox(panelEdgeColor, panelColor, 2, 4, scrW-2, math.min(10, scrH-4))
 	term.setCursorPos(4,3)
 	term.setTextColor(colors.white)
 	local amountText
@@ -440,9 +460,9 @@ function transactionLogScreen(key)
 			drawButton(colors.lightGray, colors.gray, colors.gray, scrollButtonCenterX-13, scrollButtonY, 7, string.char(27))
 		end
  
-		local totalLogs = 0
-		local i = 0
-		local buttons = {}
+	local totalLogs = 0
+	local i = 0
+	local buttons = {}
 		for k, v in ipairs(logs) do
 			if (totalLogs >= first and totalLogs < first+max) then
 				local order = #logs-k+1
@@ -462,11 +482,11 @@ function transactionLogScreen(key)
 					term.setBackgroundColor(backgroundColor)
 					term.setTextColor(panelEdgeColor)
 					print(string.rep(" ", scrW))
-					term.setBackgroundColor(panelColor)
+					term.setBackgroundColor(colors.gray)
 					print(string.rep(" ", scrW))
 				else
 					term.setCursorPos(1,y+i)
-					term.setBackgroundColor(panelColor)
+					term.setBackgroundColor(colors.gray)
 					print(string.rep(" ", scrW))
 				end
  
@@ -527,7 +547,7 @@ function transactionLogScreen(key)
 		local pageText = tostring((first/max)+1).."/"..pages
 		term.setCursorPos(scrollButtonCenterX-string.len(pageText)/2, scrollButtonY)
 		term.setBackgroundColor(backgroundColor)
-		term.setTextColor(colors.orange)
+		term.setTextColor(colors.lightGray)
 		term.write(pageText)
  
 		local backButton = drawBackButton()
@@ -587,17 +607,22 @@ function optionMenu(title, options, spacing, width)
 	local scrW, scrH = term.getSize()
 	local w = width
 	local x = scrW/2-w/2+1
-	local y = math.floor(scrH/2-(#options+1)*spacing/2)+2
+	local y = math.floor(scrH/2-(#options+1)*spacing/2)+3
 	local i = 0
-	term.setCursorPos(scrW/2-string.len(title)/2+1, y+i)
+	drawHeader(title)
+	term.setCursorPos(scrW/2-string.len(title)/2+1, y+i-1)
 	term.setTextColor(titleTextColor)
 	term.write(title)
 	i = i+spacing
  
-	term.setBackgroundColor(buttonColor)
-	term.setTextColor(buttonTextColor)
 	for k, v in ipairs(options) do
-		drawButton(buttonColor, secondaryButtonColor, buttonTextColor, x, y+i, w, v.text)
+		local primary = buttonColor
+		local secondary = secondaryButtonColor
+		if (k == 1 and #options <= 5) then
+			primary = acceptButtonColor
+			secondary = acceptSecondaryColor
+		end
+		drawButton(primary, secondary, buttonTextColor, x, y+i, w, v.text)
  
 		buttons[y+i] = v.option
 		i = i+spacing
@@ -616,6 +641,7 @@ end
 local function drawSteps(steps, currentStep)
 	term.setCursorPos(1, 2)
 	drawBackground()
+	drawHeader(serverData and serverData.bankName or "Atlas Bank")
 	local stepCount = #steps
 	if (stepCount == 1) then
 		term.setTextColor(specialTextColor)
@@ -934,7 +960,8 @@ function errorScreen(message)
 	term.clear()
 	term.setCursorBlink(false)
 	local scrW, scrH = term.getSize()
-	drawBox(cancelSecondaryColor, cancelButtonColor, 3, math.max(2, scrH/2-2), scrW-4, 5)
+	drawHeader(serverData and serverData.bankName or "Atlas Bank")
+	drawBox(panelEdgeColor, cancelButtonColor, 3, math.max(4, scrH/2-2), scrW-4, 5)
 	term.setBackgroundColor(cancelButtonColor)
 	term.setTextColor(colors.white)
 	if (type(message) == 'table') then
@@ -955,7 +982,8 @@ function successScreen(message)
 	term.clear()
 	term.setCursorBlink(false)
 	local scrW, scrH = term.getSize()
-	drawBox(acceptSecondaryColor, acceptButtonColor, 3, math.max(2, scrH/2-2), scrW-4, 5)
+	drawHeader(serverData and serverData.bankName or "Atlas Bank")
+	drawBox(panelEdgeColor, acceptButtonColor, 3, math.max(4, scrH/2-2), scrW-4, 5)
 	term.setBackgroundColor(acceptButtonColor)
 	term.setTextColor(colors.white)
 	if (type(message) == 'table') then
@@ -973,6 +1001,7 @@ end
  
 function waitScreen(message)
 	drawBackground()
+	drawHeader(serverData and serverData.bankName or "Atlas Bank")
 	term.setTextColor(colors.white)
 	local scrW, scrH = term.getSize()
 	if (type(message) == 'table') then
@@ -989,6 +1018,7 @@ end
 function confirmScreen(message, data, steps, currentStep)
 	local y = 2
 	drawBackground()
+	drawHeader(serverData and serverData.bankName or "Atlas Bank")
 	if (steps ~= nil) then
 		drawSteps(steps, currentStep)
 		y = #steps+3
@@ -1034,6 +1064,7 @@ function textScreen(message)
 	local y = 1
 	local scrW, scrH = term.getSize()
 	drawBackground()
+	drawHeader(serverData and serverData.bankName or "Atlas Bank")
 	term.setTextColor(colors.white)
 	for k, v in pairs(message) do
 		term.setCursorPos((scrW-string.len(v))/2+1, y)
@@ -1085,31 +1116,29 @@ function marketQuotesScreen(title, quotes, currencyLabel)
 	local scrW, scrH = term.getSize()
 	local backButton = drawBackButton()
 	local first = 1
-	local maxPerPage = math.max(1, scrH-5)
+	local maxPerPage = math.max(1, math.floor((scrH-6) / 5))
 
 	while true do
 		drawBackground()
-		term.setTextColor(specialTextColor)
-		term.setCursorPos(scrW/2-string.len(title)/2+1, 1)
-		term.write(title)
+		drawHeader(title)
 
-		local y = 3
+		local y = 4
 		for i=first, math.min(#quotes, first+maxPerPage-1) do
 			local quote = quotes[i]
-			drawBox(panelEdgeColor, panelColor, 2, y-1, scrW-2, 4)
-			term.setCursorPos(2, y)
+			drawBox(panelEdgeColor, colors.gray, 2, y-1, scrW-2, 4)
+			term.setCursorPos(4, y)
 			term.setTextColor(colors.white)
 			term.write(quote.name)
 			y = y + 1
-			term.setCursorPos(3, y)
+			term.setCursorPos(4, y)
 			term.setTextColor(colors.lightGray)
 			term.write("Achat: "..quote.depositPrice.." "..currencyLabel)
-			y = y + 1
-			term.setCursorPos(3, y)
+			term.setCursorPos(math.max(20, math.floor(scrW*0.45)), y)
 			term.write("Retrait: "..quote.withdrawPrice.." "..currencyLabel)
 			y = y + 1
-			term.setCursorPos(3, y)
+			term.setCursorPos(4, y)
 			term.write("Stock: "..quote.stock.." | Retrait max: "..quote.maxWithdraw)
+			y = y + 1
 			y = y + 1
 		end
 
