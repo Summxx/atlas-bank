@@ -3,23 +3,23 @@
 os.loadAPI("bankapi.lua")
 
 local defaultAssets = {
-	official_coin = {
-		id = "atm:official_coin",
-		name = {fr="Monnaie officielle", en="Official Coin"},
-		basePrice = 100,
-		fluctuationPercent = 10,
-		depositFactor = 0.97,
-		withdrawFactor = 1.04,
-		targetStock = 512,
+	netherite_scrap = {
+		id = "atlas:netherite_scrap",
+		name = {fr="Netherite Scrap", en="Netherite Scrap"},
+		basePrice = 180,
+		fluctuationPercent = 12,
+		depositFactor = 0.96,
+		withdrawFactor = 1.06,
+		targetStock = 256,
 		stock = 0,
 		allowDeposit = true,
 		allowWithdraw = true
 	},
-	raw_credit = {
-		id = "minecraft:diamond",
-		name = {fr="Cristal brut", en="Raw Credit Crystal"},
-		basePrice = 64,
-		fluctuationPercent = 18,
+	peridot = {
+		id = "atlas:peridot",
+		name = {fr="Peridot", en="Peridot"},
+		basePrice = 72,
+		fluctuationPercent = 20,
 		depositFactor = 0.95,
 		withdrawFactor = 1.08,
 		targetStock = 1024,
@@ -27,14 +27,38 @@ local defaultAssets = {
 		allowDeposit = true,
 		allowWithdraw = true
 	},
-	vault_pearl = {
-		id = "minecraft:emerald",
-		name = {fr="Perle de coffre", en="Vault Pearl"},
-		basePrice = 240,
-		fluctuationPercent = 25,
+	sapphire = {
+		id = "atlas:sapphire",
+		name = {fr="Saphire", en="Sapphire"},
+		basePrice = 110,
+		fluctuationPercent = 18,
 		depositFactor = 0.94,
-		withdrawFactor = 1.1,
-		targetStock = 128,
+		withdrawFactor = 1.08,
+		targetStock = 640,
+		stock = 0,
+		allowDeposit = true,
+		allowWithdraw = true
+	},
+	ruby = {
+		id = "atlas:ruby",
+		name = {fr="Rubis", en="Ruby"},
+		basePrice = 135,
+		fluctuationPercent = 18,
+		depositFactor = 0.94,
+		withdrawFactor = 1.09,
+		targetStock = 512,
+		stock = 0,
+		allowDeposit = true,
+		allowWithdraw = true
+	},
+	unobtainium = {
+		id = "atlas:unobtainium",
+		name = {fr="UnObtainium", en="Unobtainium"},
+		basePrice = 520,
+		fluctuationPercent = 10,
+		depositFactor = 0.92,
+		withdrawFactor = 1.12,
+		targetStock = 96,
 		stock = 0,
 		allowDeposit = true,
 		allowWithdraw = true
