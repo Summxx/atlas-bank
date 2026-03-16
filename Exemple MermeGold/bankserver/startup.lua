@@ -222,6 +222,25 @@ local function getClientData(data)
 	return true, clientData
 end
 
+local function getAccountByPlayer(data)
+	loadClients()
+	local playerName = data.playerName
+	if (playerName == nil or playerName == "") then
+		return false, localization[settings.lang].error_account
+	end
+
+	for key, account in pairs(clientData) do
+		if (account.playerName ~= nil and string.lower(account.playerName) == string.lower(playerName)) then
+			return true, {
+				key = key,
+				account = account
+			}
+		end
+	end
+
+	return false, localization[settings.lang].error_account
+end
+
 local function resolveAssetName(asset)
 	return asset.name[settings.lang] or asset.name.en or asset.id
 end
@@ -402,6 +421,7 @@ end
 local function newClient(data)
 	loadClients()
 	local name = data.name
+	local playerName = data.playerName or data.name
 	local color = data.color
 
 	local bankKey = "2000"
@@ -431,7 +451,8 @@ local function newClient(data)
 	clientData[key] = {
 		name = name,
 		balance = 0,
-		color = color
+		color = color,
+		playerName = playerName
 	}
 
 	saveClientList()
@@ -439,7 +460,12 @@ local function newClient(data)
 	local logFile = fs.open(filePath.."clientData/"..key.."/log.txt", "w")
 	logFile.close()
 
-	return true, localization[settings.lang].success_account
+	return true, {
+		message = localization[settings.lang].success_account,
+		key = key,
+		name = name,
+		playerName = playerName
+	}
 end
 
 local function deleteAccount(data)
@@ -499,6 +525,8 @@ function listen()
 			processRequest(getServerData, sender, message)
 		elseif (message.action == "getTransactionLog") then
 			processRequest(getTransactionLog, sender, message)
+		elseif (message.action == "getAccountByPlayer") then
+			processRequest(getAccountByPlayer, sender, message)
 		elseif (message.action == "transaction") then
 			processRequest(transaction, sender, message)
 		elseif (message.action == "deposit") then

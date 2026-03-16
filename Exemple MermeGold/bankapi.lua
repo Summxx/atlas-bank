@@ -357,7 +357,20 @@ function newAccount(name, balance, color)
 	local sender, message = rednet.receive("mermegold")
 	return message.success, message.response
 end
- 
+
+function newAccountForPlayer(name, playerName, color)
+	local message = {
+		action = "new",
+		name = name,
+		playerName = playerName,
+		balance = 0,
+		color = color
+	}
+	rednet.send(bankServerID, message, "mermegold")
+	local sender, message = rednet.receive("mermegold")
+	return message.success, message.response
+end
+
 function deleteAccount(key)
 	local message = {
 		action = "delete",
@@ -671,6 +684,16 @@ local function startRead(maxLength)
 	term.setCursorPos(readingPosX, readingPosY)
 	term.write(string.rep(" ", scrW-2))
 	term.setCursorBlink(true)
+end
+
+function getAccountByPlayer(playerName)
+	local message = {
+		action = "getAccountByPlayer",
+		playerName = playerName
+	}
+	rednet.send(bankServerID, message, "mermegold")
+	local sender, message = rednet.receive("mermegold")
+	return message.success, message.response
 end
  
 local function processChar(char)
