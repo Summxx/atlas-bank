@@ -149,16 +149,19 @@ local localization = {
 
 local palette = {
 	bg = colors.black,
-	header = colors.black,
+	header = colors.lightGray,
 	panel = colors.gray,
-	panel2 = colors.lightGray,
+	panel2 = colors.white,
 	text = colors.white,
 	sub = colors.lightGray,
-	accent = colors.cyan,
-	success = colors.green,
+	darkText = colors.black,
+	accent = colors.lightBlue,
+	success = colors.lime,
 	danger = colors.red,
 	card = colors.gray,
-	cardAlt = colors.black
+	cardAlt = colors.black,
+	cardHeader = colors.lightGray,
+	muted = colors.gray
 }
 
 local state = {
@@ -196,6 +199,10 @@ local function fill(x, y, w, h, color)
 	end
 end
 
+local function line(x, y, w, color)
+	fill(x, y, w, 1, color)
+end
+
 local function centerText(y, text, textColor, bgColor)
 	local w = select(1, mSize())
 	monitor.setBackgroundColor(bgColor or palette.bg)
@@ -211,28 +218,41 @@ local function writeAt(x, y, text, textColor, bgColor)
 	monitor.write(text)
 end
 
+local function drawCard(x, y, w, h, title, subtitle)
+	fill(x, y, w, h, palette.card)
+	line(x, y, w, palette.cardHeader)
+	if (title ~= nil and title ~= "") then
+		writeAt(x + 2, y, title, palette.darkText, palette.cardHeader)
+	end
+	if (subtitle ~= nil and subtitle ~= "") then
+		writeAt(x + 2, y + 1, subtitle, palette.sub, palette.card)
+	end
+end
+
 local function drawPill(x, y, w, label, bg, fg, id)
-	fill(x, y, w, 1, bg)
-	writeAt(math.floor(x + (w - #label) / 2), y, label, fg, bg)
+	w = math.max(8, w)
+	fill(x + 1, y, w - 2, 1, bg)
+	fill(x, y + 1, w, 1, bg)
+	fill(x + 1, y + 2, w - 2, 1, bg)
+	writeAt(math.floor(x + (w - #label) / 2), y + 1, label, fg, bg)
 	if (id ~= nil) then
-		table.insert(state.buttons, {id=id, x=x, y=y, w=w, h=1})
+		table.insert(state.buttons, {id=id, x=x, y=y, w=w, h=3})
 	end
 end
 
 local function drawHeader(title, subtitle)
 	local w = select(1, mSize())
-	fill(1, 1, w, 3, palette.header)
-	centerText(1, title, palette.text, palette.header)
+	fill(1, 1, w, 4, palette.bg)
+	fill(3, 2, w - 4, 1, palette.header)
+	centerText(2, title, palette.darkText, palette.header)
 	if (subtitle ~= nil and subtitle ~= "") then
-		centerText(2, subtitle, palette.sub, palette.header)
+		centerText(3, subtitle, palette.sub, palette.bg)
 	end
-	fill(1, 3, w, 1, colors.gray)
+	line(3, 4, w - 4, palette.muted)
 end
 
 local function drawPanel(x, y, w, h, title)
-	fill(x, y, w, h, palette.panel)
-	fill(x, y, w, 1, palette.panel2)
-	writeAt(x+2, y, title or "", colors.black, palette.panel2)
+	drawCard(x, y, w, h, title)
 end
 
 local function sendPlayerMessage(playerName, text)
@@ -343,15 +363,16 @@ local function sparkline(x, y, w, values)
 		end
 		text = text .. chars[index]
 	end
-	writeAt(x, y, text, palette.accent, palette.panel)
+	writeAt(x, y, text, palette.accent, palette.card)
 end
 
 local function drawSleep()
 	clear(palette.bg)
 	local w, h = mSize()
-	centerText(math.max(3, math.floor(h/2)-2), t("sleep_title"), palette.text, palette.bg)
-	centerText(math.max(4, math.floor(h/2)), t("sleep_hint"), palette.sub, palette.bg)
-	centerText(math.max(5, math.floor(h/2)+2), t("detect"), palette.sub, palette.bg)
+	drawCard(math.max(3, math.floor(w / 2) - 18), math.max(4, math.floor(h / 2) - 5), 36, 10, "", "")
+	centerText(math.max(5, math.floor(h/2)-2), t("sleep_title"), palette.text, palette.card)
+	centerText(math.max(7, math.floor(h/2)), t("sleep_hint"), palette.sub, palette.card)
+	centerText(math.max(9, math.floor(h/2)+2), t("detect"), palette.accent, palette.card)
 	state.buttons = {
 		{id="wake", x=1, y=1, w=w, h=h}
 	}
@@ -364,23 +385,25 @@ local function drawHome()
 	drawHeader(serverData.bankName or "Atlas Bank", subtitle)
 
 	local w, h = mSize()
-	drawPanel(2, 5, w-2, 6, serverData.bankName or "Atlas Bank")
+	drawPanel(3, 6, w-4, 7, serverData.bankName or "Atlas Bank")
 	if (state.account ~= nil) then
-		writeAt(4, 7, t("balance")..": "..tostring(state.account.balance).." "..(serverData.currencyLabel or "Credits"), palette.text, palette.panel)
-		writeAt(4, 8, t("account_key")..": "..state.accountKey, palette.sub, palette.panel)
-		writeAt(4, 9, t("assist"), palette.sub, palette.panel)
-		drawPill(4, 12, math.max(16, math.floor((w-10)/2)), t("my_account"), palette.success, colors.white, "account")
-		drawPill(6 + math.max(16, math.floor((w-10)/2)), 12, math.max(16, math.floor((w-10)/2)), t("market"), palette.panel2, colors.black, "market")
+		writeAt(6, 8, t("balance")..": "..tostring(state.account.balance).." "..(serverData.currencyLabel or "Credits"), palette.text, palette.card)
+		writeAt(6, 9, t("account_key")..": "..state.accountKey, palette.sub, palette.card)
+		writeAt(6, 10, t("assist"), palette.sub, palette.card)
+		local primaryWidth = math.max(18, math.floor((w - 16) / 2))
+		drawPill(6, 15, primaryWidth, t("my_account"), palette.success, colors.black, "account")
+		drawPill(8 + primaryWidth, 15, primaryWidth, t("market"), palette.panel2, colors.black, "market")
 	else
-		writeAt(4, 7, t("no_account"), palette.text, palette.panel)
-		writeAt(4, 8, t("register_desc"), palette.sub, palette.panel)
-		writeAt(4, 9, t("assist"), palette.sub, palette.panel)
-		drawPill(4, 12, math.max(18, math.floor((w-10)/2)), t("create_account"), palette.success, colors.white, "register")
-		drawPill(6 + math.max(18, math.floor((w-10)/2)), 12, math.max(14, math.floor((w-10)/2)-2), t("market"), palette.panel2, colors.black, "market")
+		writeAt(6, 8, t("no_account"), palette.text, palette.card)
+		writeAt(6, 9, t("register_desc"), palette.sub, palette.card)
+		writeAt(6, 10, t("assist"), palette.sub, palette.card)
+		local primaryWidth = math.max(18, math.floor((w - 16) / 2))
+		drawPill(6, 15, primaryWidth, t("create_account"), palette.success, colors.black, "register")
+		drawPill(8 + primaryWidth, 15, primaryWidth, t("market"), palette.panel2, colors.black, "market")
 	end
 
-	drawPill(4, h-2, 12, t("help"), palette.panel2, colors.black, "help")
-	drawPill(w-15, h-2, 12, t("sleep"), palette.danger, colors.white, "sleep")
+	drawPill(4, h-4, 12, t("help"), palette.panel2, colors.black, "help")
+	drawPill(w-15, h-4, 12, t("sleep"), palette.danger, colors.white, "sleep")
 end
 
 local function drawRegister()
@@ -388,16 +411,16 @@ local function drawRegister()
 	state.buttons = {}
 	drawHeader(t("register_title"), state.currentPlayer or t("no_player"))
 	local w, h = mSize()
-	drawPanel(2, 5, w-2, 8, t("register_title"))
-	writeAt(4, 7, t("register_desc"), palette.text, palette.panel)
+	drawPanel(3, 6, w-4, 9, t("register_title"))
+	writeAt(6, 8, t("register_desc"), palette.text, palette.card)
 	if (state.currentPlayer ~= nil) then
-		writeAt(4, 9, t("register_ready")..": "..state.currentPlayer, palette.accent, palette.panel)
-		drawPill(4, 13, w-8, t("register_button"), palette.success, colors.white, "register_confirm")
+		writeAt(6, 10, t("register_ready")..": "..state.currentPlayer, palette.accent, palette.card)
+		drawPill(6, 15, w-12, t("register_button"), palette.success, colors.black, "register_confirm")
 	else
-		writeAt(4, 9, t("account_missing"), palette.sub, palette.panel)
+		writeAt(6, 10, t("account_missing"), palette.sub, palette.card)
 	end
-	drawPill(4, h-2, 12, t("back"), palette.panel2, colors.black, "home")
-	drawPill(w-15, h-2, 12, t("help"), palette.panel2, colors.black, "help")
+	drawPill(4, h-4, 12, t("back"), palette.panel2, colors.black, "home")
+	drawPill(w-15, h-4, 12, t("help"), palette.panel2, colors.black, "help")
 end
 
 local function drawAccount()
@@ -405,19 +428,19 @@ local function drawAccount()
 	state.buttons = {}
 	drawHeader(t("account_title"), state.currentPlayer or "")
 	local w, h = mSize()
-	drawPanel(2, 5, w-2, 9, t("my_account"))
+	drawPanel(3, 6, w-4, 10, t("my_account"))
 	if (state.account == nil) then
-		writeAt(4, 8, t("account_missing"), palette.sub, palette.panel)
+		writeAt(6, 9, t("account_missing"), palette.sub, palette.card)
 	else
-		writeAt(4, 7, t("player")..": "..(state.account.playerName or state.currentPlayer or "?"), palette.text, palette.panel)
-		writeAt(4, 8, t("account_key")..": "..state.accountKey, palette.text, palette.panel)
-		writeAt(4, 9, t("balance")..": "..tostring(state.account.balance).." "..(serverData.currencyLabel or "Credits"), palette.accent, palette.panel)
-		writeAt(4, 10, t("status")..": "..t("status_online"), palette.sub, palette.panel)
-		writeAt(4, 11, serverData.bankName or "Atlas Bank", palette.sub, palette.panel)
+		writeAt(6, 8, t("player")..": "..(state.account.playerName or state.currentPlayer or "?"), palette.text, palette.card)
+		writeAt(6, 9, t("account_key")..": "..state.accountKey, palette.text, palette.card)
+		writeAt(6, 10, t("balance")..": "..tostring(state.account.balance).." "..(serverData.currencyLabel or "Credits"), palette.accent, palette.card)
+		writeAt(6, 11, t("status")..": "..t("status_online"), palette.sub, palette.card)
+		writeAt(6, 12, serverData.bankName or "Atlas Bank", palette.sub, palette.card)
 	end
-	drawPill(4, 15, 14, t("back"), palette.panel2, colors.black, "home")
-	drawPill(20, 15, 16, t("market"), palette.success, colors.white, "market")
-	drawPill(w-15, 15, 12, t("help"), palette.panel2, colors.black, "help")
+	drawPill(4, h-4, 12, t("back"), palette.panel2, colors.black, "home")
+	drawPill(18, h-4, 14, t("market"), palette.success, colors.black, "market")
+	drawPill(w-15, h-4, 12, t("help"), palette.panel2, colors.black, "help")
 end
 
 local function drawMarket()
@@ -425,23 +448,24 @@ local function drawMarket()
 	state.buttons = {}
 	drawHeader(t("market_title"), t("market_live"))
 	local w, h = mSize()
-	drawPanel(2, 5, w-2, h-8, t("market_sub"))
+	drawPanel(3, 6, w-4, h-11, t("market_sub"))
 	if (#state.quotes == 0) then
-		writeAt(4, 8, t("market_empty"), palette.sub, palette.panel)
+		writeAt(6, 9, t("market_empty"), palette.sub, palette.card)
 	else
-		local y = 7
-		for index, quote in ipairs(state.quotes) do
-			if (y > h-5) then break end
-			local bg = (quote.id == state.selectedAsset) and palette.panel2 or palette.panel
-			fill(4, y, w-6, 2, bg)
-			writeAt(5, y, quote.name, (quote.id == state.selectedAsset) and colors.black or palette.text, bg)
-			writeAt(5, y+1, t("buy_price")..": "..quote.depositPrice.."  "..t("sell_price")..": "..quote.withdrawPrice, (quote.id == state.selectedAsset) and colors.black or palette.sub, bg)
-			table.insert(state.buttons, {id="asset:"..quote.id, x=4, y=y, w=w-6, h=2})
-			y = y + 3
+		local y = 8
+		for _, quote in ipairs(state.quotes) do
+			if (y > h-8) then break end
+			local bg = (quote.id == state.selectedAsset) and palette.panel2 or palette.card
+			fill(6, y, w-10, 3, bg)
+			writeAt(8, y, quote.name, (quote.id == state.selectedAsset) and colors.black or palette.text, bg)
+			writeAt(8, y + 1, t("buy_price")..": "..quote.depositPrice, (quote.id == state.selectedAsset) and colors.black or palette.sub, bg)
+			writeAt(math.floor(w / 2), y + 1, t("sell_price")..": "..quote.withdrawPrice, (quote.id == state.selectedAsset) and colors.black or palette.sub, bg)
+			table.insert(state.buttons, {id="asset:"..quote.id, x=6, y=y, w=w-10, h=3})
+			y = y + 4
 		end
 	end
-	drawPill(4, h-2, 12, t("back"), palette.panel2, colors.black, "home")
-	drawPill(w-15, h-2, 12, t("detail"), palette.success, colors.white, "asset_detail")
+	drawPill(4, h-4, 12, t("back"), palette.panel2, colors.black, "home")
+	drawPill(w-15, h-4, 12, t("detail"), palette.success, colors.black, "asset_detail")
 end
 
 local function drawAssetDetail()
@@ -450,17 +474,17 @@ local function drawAssetDetail()
 	local quote = getSelectedQuote()
 	drawHeader(t("detail"), quote and quote.name or "")
 	local w, h = mSize()
-	drawPanel(2, 5, w-2, h-8, quote and quote.name or t("market_empty"))
+	drawPanel(3, 6, w-4, h-11, quote and quote.name or t("market_empty"))
 	if (quote ~= nil) then
-		writeAt(4, 7, t("buy_price")..": "..quote.depositPrice.." "..(serverData.currencyLabel or "Credits"), palette.text, palette.panel)
-		writeAt(4, 8, t("sell_price")..": "..quote.withdrawPrice.." "..(serverData.currencyLabel or "Credits"), palette.text, palette.panel)
-		writeAt(4, 9, t("stock")..": "..quote.stock, palette.sub, palette.panel)
-		writeAt(4, 10, t("withdraw_max")..": "..quote.maxWithdraw, palette.sub, palette.panel)
-		writeAt(4, 12, t("graph"), palette.text, palette.panel)
-		sparkline(4, 13, math.max(10, w-8), state.history[quote.id] or {})
+		writeAt(6, 8, t("buy_price")..": "..quote.depositPrice.." "..(serverData.currencyLabel or "Credits"), palette.text, palette.card)
+		writeAt(6, 9, t("sell_price")..": "..quote.withdrawPrice.." "..(serverData.currencyLabel or "Credits"), palette.text, palette.card)
+		writeAt(6, 10, t("stock")..": "..quote.stock, palette.sub, palette.card)
+		writeAt(6, 11, t("withdraw_max")..": "..quote.maxWithdraw, palette.sub, palette.card)
+		writeAt(6, 13, t("graph"), palette.text, palette.card)
+		sparkline(6, 14, math.max(10, w-12), state.history[quote.id] or {})
 	end
-	drawPill(4, h-2, 12, t("back"), palette.panel2, colors.black, "market")
-	drawPill(w-15, h-2, 12, t("help"), palette.panel2, colors.black, "help")
+	drawPill(4, h-4, 12, t("back"), palette.panel2, colors.black, "market")
+	drawPill(w-15, h-4, 12, t("help"), palette.panel2, colors.black, "help")
 end
 
 local function drawHelp()
@@ -468,15 +492,15 @@ local function drawHelp()
 	state.buttons = {}
 	drawHeader(t("help_title"), serverData.bankName or "Atlas Bank")
 	local w, h = mSize()
-	drawPanel(2, 5, w-2, h-8, t("help_title"))
-	local y = 7
+	drawPanel(3, 6, w-4, h-11, t("help_title"))
+	local y = 8
 	for _, line in ipairs(localization[lang].help_lines) do
-		if (y > h-4) then break end
-		writeAt(4, y, line, palette.text, palette.panel)
+		if (y > h-8) then break end
+		writeAt(6, y, line, palette.text, palette.card)
 		y = y + 2
 	end
-	drawPill(4, h-2, 12, t("back"), palette.panel2, colors.black, "home")
-	drawPill(w-15, h-2, 12, t("sleep"), palette.danger, colors.white, "sleep")
+	drawPill(4, h-4, 12, t("back"), palette.panel2, colors.black, "home")
+	drawPill(w-15, h-4, 12, t("sleep"), palette.danger, colors.white, "sleep")
 end
 
 local function drawCurrentPage()
