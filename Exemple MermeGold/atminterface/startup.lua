@@ -1,8 +1,6 @@
--- Atlas Bank PixelUI Kiosk
+-- Atlas Bank Advanced Monitor ATM
 
 os.loadAPI("bankapi.lua")
-
-local pixelui = require("pixelui")
 
 local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
@@ -13,7 +11,7 @@ local function hasMethod(object, methodName)
 end
 
 if (monitor == nil) then
-	error("Un monitor est requis pour utiliser le kiosque Atlas Bank.")
+	error("Un advanced monitor est requis pour utiliser le terminal Atlas Bank.")
 end
 if (chatBox == nil or not hasMethod(chatBox, "sendMessageToPlayer")) then
 	error("Une Chat Box Advanced Peripherals doit etre placee a gauche de l'ordinateur.")
@@ -29,7 +27,7 @@ while (modem == nil) do
 		term.setBackgroundColor(colors.red)
 		term.setTextColor(colors.white)
 		term.clear()
-		term.setCursorPos(1,1)
+		term.setCursorPos(1, 1)
 		print("Modem requis. Connectez un modem pour continuer...")
 		os.pullEvent("peripheral")
 	end
@@ -38,116 +36,109 @@ end
 peripheral.find("modem", rednet.open)
 monitor.setTextScale(0.5)
 
+local monitorSide = peripheral.getName(monitor)
 local width, height = monitor.getSize()
-local viewport = window.create(monitor, 1, 1, width, height, true)
-
 local serverData = bankapi.getServerData()
 local lang = serverData.lang or "fr"
 
 local localization = {
 	fr = {
+		title = "ATM",
+		balance = "Solde",
+		no_balance = "Aucun compte",
 		sleep_title = "ATLAS BANK",
-		sleep_subtitle = "Kiosque bancaire prive",
-		sleep_hint = "Clic droit sur l'ecran pour utiliser le kiosque",
-		sleep_detail = "Touchez l'ecran pour sortir du mode veille",
-		home_title = "Tableau de bord",
-		no_player = "Aucun joueur detecte",
-		detected = "Joueur detecte",
-		no_account = "Aucun compte bancaire detecte",
-		account_found = "Compte Atlas Bank actif",
+		sleep_subtitle = "Banque privee decentralisee",
+		sleep_hint = "Clic droit pour utiliser ou sortir du mode veille",
+		sleep_hint_2 = "Advanced monitor en haute resolution",
+		no_player = "Aucun joueur detecte a droite",
+		player = "Joueur detecte",
+		no_account = "Aucun compte Atlas Bank detecte",
+		account_ready = "Compte Atlas Bank actif",
 		create_account = "Creer mon compte",
-		open_account = "Mon compte",
+		my_account = "Mon compte",
 		market = "Marche",
 		help = "Aide",
 		sleep = "Veille",
 		back = "Retour",
-		register_title = "Creation de compte",
-		register_text = "Le Player Detector a droite reconnait automatiquement le joueur proche.",
-		register_ready = "Pret a ouvrir votre compte",
+		register_title = "Ouverture de compte",
+		register_desc = "Le player detector a droite identifie automatiquement le joueur proche.",
 		register_button = "Ouvrir mon compte",
-		register_success = "Compte cree avec succes",
-		register_error = "Impossible de creer le compte",
+		register_need_player = "Approchez-vous du detecteur pour ouvrir un compte.",
+		register_success = "Compte cree avec succes.",
+		register_error = "Impossible de creer le compte.",
 		register_chat_1 = "Votre compte Atlas Bank a ete cree. Cle : ",
-		register_chat_2 = " Revenez au kiosque pour consulter votre solde.",
-		account_title = "Mon compte",
-		player = "Joueur",
+		register_chat_2 = " Revenez au terminal pour consulter votre solde.",
+		account_title = "Compte bancaire",
 		key = "Cle",
-		balance = "Solde",
 		status = "Statut",
-		status_online = "Connecte au kiosque",
+		status_online = "Connecte au terminal",
 		market_title = "Cours du marche",
-		market_live = "Flux live",
-		market_empty = "Aucun actif disponible",
+		market_empty = "Aucun actif charge.",
+		select_asset = "Selectionnez un actif a gauche",
 		buy_price = "Achat banque",
 		sell_price = "Retrait banque",
 		stock = "Reserve",
 		withdraw_max = "Retrait max",
 		graph = "Graphique live",
-		help_title = "Aide du kiosque",
+		help_title = "Guide rapide",
 		help_lines = {
-			"1. Placez-vous a droite du kiosque pour etre detecte.",
-			"2. Ouvrez un compte si vous n'en avez pas encore.",
-			"3. Consultez votre solde depuis la page Mon compte.",
-			"4. Ouvrez Marche pour voir les cours et le graphique live.",
-			"5. Utilisez Veille pour revenir a l'ecran d'accueil."
+			"1. Placez-vous a droite du terminal pour etre detecte.",
+			"2. Creez votre compte si necessaire.",
+			"3. Consultez ensuite votre solde et les cours du marche.",
+			"4. Touchez un actif a gauche pour voir ses details.",
+			"5. Utilisez Veille pour revenir a l'ecran principal."
 		},
-		wait = "Connexion au serveur bancaire...",
-		chat_prefix = "Atlas Bank",
-		need_player = "Approchez-vous du detecteur joueur a droite.",
-		select_asset = "Selectionnez un actif pour voir le detail.",
-		bank_name = serverData.bankName or "Atlas Bank"
+		assist = "Touchez un bouton pour continuer.",
+		currency = serverData.currencyLabel or "Credits"
 	},
 	en = {
+		title = "ATM",
+		balance = "Balance",
+		no_balance = "No account",
 		sleep_title = "ATLAS BANK",
-		sleep_subtitle = "Private banking kiosk",
-		sleep_hint = "Right click the screen to use the kiosk",
-		sleep_detail = "Touch the screen to leave standby",
-		home_title = "Dashboard",
-		no_player = "No player detected",
-		detected = "Detected player",
-		no_account = "No bank account detected",
-		account_found = "Atlas Bank account active",
+		sleep_subtitle = "Decentralized private bank",
+		sleep_hint = "Right click to use or leave standby mode",
+		sleep_hint_2 = "Advanced monitor in high resolution",
+		no_player = "No player detected on the right",
+		player = "Detected player",
+		no_account = "No Atlas Bank account detected",
+		account_ready = "Atlas Bank account active",
 		create_account = "Create account",
-		open_account = "My account",
+		my_account = "My account",
 		market = "Market",
 		help = "Help",
 		sleep = "Sleep",
 		back = "Back",
-		register_title = "Account creation",
-		register_text = "The player detector on the right automatically identifies the nearby player.",
-		register_ready = "Ready to open your account",
+		register_title = "Open account",
+		register_desc = "The player detector on the right automatically identifies the nearby player.",
 		register_button = "Open my account",
-		register_success = "Account created successfully",
-		register_error = "Unable to create account",
+		register_need_player = "Stand near the detector to open an account.",
+		register_success = "Account created successfully.",
+		register_error = "Unable to create account.",
 		register_chat_1 = "Your Atlas Bank account has been created. Key: ",
-		register_chat_2 = " Return to the kiosk to check your balance.",
-		account_title = "My account",
-		player = "Player",
+		register_chat_2 = " Return to the terminal to check your balance.",
+		account_title = "Bank account",
 		key = "Key",
-		balance = "Balance",
 		status = "Status",
-		status_online = "Connected to kiosk",
+		status_online = "Connected to terminal",
 		market_title = "Market rates",
-		market_live = "Live feed",
-		market_empty = "No assets available",
+		market_empty = "No assets loaded.",
+		select_asset = "Select an asset on the left",
 		buy_price = "Bank buy",
 		sell_price = "Withdraw",
 		stock = "Reserve",
 		withdraw_max = "Max withdraw",
-		graph = "Live chart",
-		help_title = "Kiosk help",
+		graph = "Live graph",
+		help_title = "Quick guide",
 		help_lines = {
-			"1. Stand on the right side of the kiosk to be detected.",
-			"2. Create your account if you do not already have one.",
-			"3. Check your balance on the My account page.",
-			"4. Open Market to view prices and live chart.",
-			"5. Use Sleep to return to the standby screen."
+			"1. Stand on the right side of the terminal to be detected.",
+			"2. Create your account if needed.",
+			"3. Then check your balance and market rates.",
+			"4. Touch an asset on the left to see details.",
+			"5. Use Sleep to return to the main screen."
 		},
-		wait = "Connecting to bank server...",
-		chat_prefix = "Atlas Bank",
-		need_player = "Stand near the player detector on the right.",
-		select_asset = "Select an asset to see details.",
-		bank_name = serverData.bankName or "Atlas Bank"
+		assist = "Touch a button to continue.",
+		currency = serverData.currencyLabel or "Credits"
 	}
 }
 
@@ -157,72 +148,115 @@ end
 
 local theme = {
 	bg = colors.black,
-	header = colors.white,
-	headerText = colors.black,
 	card = colors.gray,
-	cardAlt = colors.lightGray,
+	cardDark = colors.black,
+	border = colors.lightGray,
 	text = colors.white,
 	sub = colors.lightGray,
 	accent = colors.lightBlue,
 	success = colors.lime,
 	successText = colors.black,
+	warning = colors.orange,
+	warningText = colors.black,
+	primary = colors.blue,
+	primaryText = colors.white,
 	danger = colors.red,
-	border = colors.gray
+	dangerText = colors.white,
+	muted = colors.gray,
+	coin = colors.yellow,
+	coinText = colors.black
 }
 
 local state = {
 	page = "sleep",
 	currentPlayer = nil,
-	accountKey = nil,
 	account = nil,
+	accountKey = nil,
 	quotes = {},
 	history = {},
-	selectedAsset = nil
+	selectedAsset = nil,
+	buttons = {}
 }
 
-local app = pixelui.create({
-	window = viewport,
-	background = theme.bg,
-	animationInterval = 0.05
-})
-
-local root = app:getRoot()
-
-local pages = {}
-local widgets = {}
-local marketButtons = {}
-
-local function add(parent, widget)
-	parent:addChild(widget)
-	return widget
+local function clear()
+	monitor.setBackgroundColor(theme.bg)
+	monitor.setTextColor(theme.text)
+	monitor.clear()
+	monitor.setCursorPos(1, 1)
 end
 
-local function makeFrame(parent, config)
-	return add(parent, app:createFrame(config))
-end
-
-local function makeLabel(parent, config)
-	return add(parent, app:createLabel(config))
-end
-
-local function makeButton(parent, config)
-	config.clickEffect = true
-	return add(parent, app:createButton(config))
-end
-
-local function hideAllPages()
-	for _, frame in pairs(pages) do
-		frame.visible = false
+local function fill(x, y, w, h, bg)
+	if (w <= 0 or h <= 0) then
+		return
+	end
+	monitor.setBackgroundColor(bg)
+	for row = y, y + h - 1 do
+		monitor.setCursorPos(x, row)
+		monitor.write(string.rep(" ", w))
 	end
 end
 
-local function showPage(name)
-	state.page = name
-	hideAllPages()
-	if (pages[name] ~= nil) then
-		pages[name].visible = true
+local function writeAt(x, y, text, fg, bg)
+	monitor.setCursorPos(x, y)
+	monitor.setTextColor(fg or theme.text)
+	monitor.setBackgroundColor(bg or theme.bg)
+	monitor.write(text)
+end
+
+local function centerText(y, text, fg, bg)
+	writeAt(math.max(1, math.floor((width - #text) / 2) + 1), y, text, fg, bg)
+end
+
+local function trimText(text, maxLength)
+	text = tostring(text or "")
+	if (#text <= maxLength) then
+		return text
 	end
-	app:render()
+	return string.sub(text, 1, math.max(1, maxLength - 3)) .. "..."
+end
+
+local function addButton(id, x, y, w, h)
+	state.buttons[#state.buttons + 1] = {
+		id = id,
+		x1 = x,
+		y1 = y,
+		x2 = x + w - 1,
+		y2 = y + h - 1
+	}
+end
+
+local function roundedButton(id, x, y, w, label, bg, fg)
+	w = math.max(w, #label + 4)
+	fill(x + 1, y, w - 2, 1, bg)
+	fill(x, y + 1, w, 1, bg)
+	fill(x + 1, y + 2, w - 2, 1, bg)
+	writeAt(x + math.floor((w - #label) / 2), y + 1, label, fg, bg)
+	addButton(id, x, y, w, 3)
+	return w
+end
+
+local function flatPanel(x, y, w, h, title)
+	fill(x, y, w, h, theme.card)
+	fill(x, y, w, 1, theme.border)
+	if (title ~= nil and title ~= "") then
+		writeAt(x + 2, y, title, theme.cardDark, theme.border)
+	end
+end
+
+local function statusChip(x, y, text, bg, fg)
+	local widthChip = #text + 4
+	fill(x, y, widthChip, 1, bg)
+	writeAt(x + 2, y, text, fg, bg)
+	return widthChip
+end
+
+local function hitButton(x, y)
+	for _, button in ipairs(state.buttons) do
+		if (x >= button.x1 and x <= button.x2 and y >= button.y1 and y <= button.y2) then
+			return button.id
+		end
+	end
+	return nil
 end
 
 local function normalizePlayerEntry(entry)
@@ -247,7 +281,7 @@ local function sendPlayerMessage(playerName, text)
 		return
 	end
 	pcall(function()
-		chatBox.sendMessageToPlayer(text, playerName, t("chat_prefix"), "<>")
+		chatBox.sendMessageToPlayer(text, playerName, serverData.bankName or "Atlas Bank", "<>")
 	end)
 end
 
@@ -260,155 +294,7 @@ local function colorFromName(name)
 	return colorsList[(sum % #colorsList) + 1]
 end
 
-local function refreshSelectedQuote()
-	if (state.selectedAsset ~= nil) then
-		for _, quote in ipairs(state.quotes) do
-			if (quote.id == state.selectedAsset) then
-				return quote
-			end
-		end
-	end
-	state.selectedAsset = state.quotes[1] and state.quotes[1].id or nil
-	return state.quotes[1]
-end
-
-local function updateHeader()
-	local subtitle
-	if (state.currentPlayer ~= nil) then
-		subtitle = t("detected") .. ": " .. state.currentPlayer
-	else
-		subtitle = t("no_player")
-	end
-	widgets.headerSubtitle:setText(subtitle)
-end
-
-local function updateHome()
-	updateHeader()
-	if (state.currentPlayer ~= nil) then
-		widgets.homePlayer:setText(t("detected") .. ": " .. state.currentPlayer)
-	else
-		widgets.homePlayer:setText(t("need_player"))
-	end
-
-	if (state.account ~= nil) then
-		widgets.homeStatus:setText(t("account_found"))
-		widgets.homeBalance:setText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. (serverData.currencyLabel or "Credits"))
-		widgets.homePrimary:setLabel(t("open_account"))
-		widgets.homePrimary.onClick = function()
-			showPage("account")
-		end
-	else
-		widgets.homeStatus:setText(t("no_account"))
-		widgets.homeBalance:setText(t("register_title"))
-		widgets.homePrimary:setLabel(t("create_account"))
-		widgets.homePrimary.onClick = function()
-			showPage("register")
-		end
-	end
-end
-
-local function updateRegister()
-	if (state.currentPlayer ~= nil) then
-		widgets.registerDetected:setText(t("register_ready") .. ": " .. state.currentPlayer)
-	else
-		widgets.registerDetected:setText(t("need_player"))
-	end
-end
-
-local function updateAccount()
-	if (state.account ~= nil) then
-		widgets.accountPlayer:setText(t("player") .. ": " .. (state.account.playerName or state.currentPlayer or "?"))
-		widgets.accountKey:setText(t("key") .. ": " .. tostring(state.accountKey))
-		widgets.accountBalance:setText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. (serverData.currencyLabel or "Credits"))
-		widgets.accountStatus:setText(t("status") .. ": " .. t("status_online"))
-	else
-		widgets.accountPlayer:setText(t("need_player"))
-		widgets.accountKey:setText(t("key") .. ": -")
-		widgets.accountBalance:setText(t("balance") .. ": -")
-		widgets.accountStatus:setText(t("no_account"))
-	end
-end
-
-local function updateMarketList()
-	for _, button in ipairs(marketButtons) do
-		pages.marketContent:removeChild(button)
-	end
-	marketButtons = {}
-
-	local listX = 3
-	local listY = 3
-	local listWidth = math.max(24, math.floor(width * 0.34))
-	local maxButtons = math.max(3, math.floor((height - 18) / 3))
-
-	if (#state.quotes == 0) then
-		widgets.marketPlaceholder.visible = true
-	else
-		widgets.marketPlaceholder.visible = false
-	end
-
-	for index, quote in ipairs(state.quotes) do
-		if (index > maxButtons) then
-			break
-		end
-		local isSelected = quote.id == state.selectedAsset
-		local button = app:createButton({
-			x = listX,
-			y = listY + ((index - 1) * 3),
-			width = listWidth,
-			height = 3,
-			label = quote.name,
-			bg = isSelected and theme.header or theme.cardAlt,
-			fg = isSelected and theme.headerText or theme.text,
-			border = { color = isSelected and theme.accent or theme.border },
-			onClick = function()
-				state.selectedAsset = quote.id
-				updateMarketWidgets()
-				app:render()
-			end
-		})
-		pages.marketContent:addChild(button)
-		table.insert(marketButtons, button)
-	end
-end
-
-function updateMarketWidgets()
-	local quote = refreshSelectedQuote()
-	updateMarketList()
-	if (quote == nil) then
-		widgets.marketName:setText(t("market_empty"))
-		widgets.marketBuy:setText("-")
-		widgets.marketSell:setText("-")
-		widgets.marketStock:setText("-")
-		widgets.marketWithdraw:setText("-")
-		widgets.marketChart:setData({})
-		widgets.marketChart:setLabels({})
-		return
-	end
-
-	widgets.marketName:setText(quote.name)
-	widgets.marketBuy:setText(t("buy_price") .. ": " .. tostring(quote.depositPrice) .. " " .. (serverData.currencyLabel or "Credits"))
-	widgets.marketSell:setText(t("sell_price") .. ": " .. tostring(quote.withdrawPrice) .. " " .. (serverData.currencyLabel or "Credits"))
-	widgets.marketStock:setText(t("stock") .. ": " .. tostring(quote.stock))
-	widgets.marketWithdraw:setText(t("withdraw_max") .. ": " .. tostring(quote.maxWithdraw))
-
-	local history = state.history[quote.id] or {}
-	local labels = {}
-	for i = 1, #history do
-		labels[i] = tostring(i)
-	end
-	widgets.marketChart:setData(history)
-	widgets.marketChart:setLabels(labels)
-end
-
-local function refreshAll()
-	updateHome()
-	updateRegister()
-	updateAccount()
-	updateMarketWidgets()
-	app:render()
-end
-
-local function loadAccountForCurrentPlayer()
+local function refreshPlayerAndAccount()
 	state.currentPlayer = detectPlayer()
 	state.account = nil
 	state.accountKey = nil
@@ -421,7 +307,7 @@ local function loadAccountForCurrentPlayer()
 	end
 end
 
-local function loadQuotes()
+local function refreshQuotes()
 	local ok, quotes = pcall(bankapi.getAssetQuotes)
 	if (not ok or type(quotes) ~= "table") then
 		return
@@ -429,9 +315,10 @@ local function loadQuotes()
 	state.quotes = quotes
 	for _, quote in ipairs(state.quotes) do
 		state.history[quote.id] = state.history[quote.id] or {}
-		table.insert(state.history[quote.id], quote.depositPrice)
-		if (#state.history[quote.id] > 24) then
-			table.remove(state.history[quote.id], 1)
+		local history = state.history[quote.id]
+		history[#history + 1] = quote.depositPrice
+		if (#history > 36) then
+			table.remove(history, 1)
 		end
 	end
 	if (state.selectedAsset == nil and #state.quotes > 0) then
@@ -439,658 +326,318 @@ local function loadQuotes()
 	end
 end
 
-local function createAccountForCurrentPlayer()
-	if (state.currentPlayer == nil) then
-		widgets.registerDetected:setText(t("need_player"))
-		app:render()
+local function selectedQuote()
+	if (state.selectedAsset ~= nil) then
+		for _, quote in ipairs(state.quotes) do
+			if (quote.id == state.selectedAsset) then
+				return quote
+			end
+		end
+	end
+	if (#state.quotes > 0) then
+		state.selectedAsset = state.quotes[1].id
+		return state.quotes[1]
+	end
+	return nil
+end
+
+local function drawGraph(x, y, w, h, values)
+	fill(x, y, w, h, theme.cardDark)
+	if (values == nil or #values == 0) then
+		centerText(y + math.floor(h / 2), "-", theme.sub, theme.cardDark)
 		return
 	end
 
+	local startIndex = math.max(1, #values - w + 1)
+	local minValue = values[startIndex]
+	local maxValue = values[startIndex]
+	for index = startIndex, #values do
+		if (values[index] < minValue) then minValue = values[index] end
+		if (values[index] > maxValue) then maxValue = values[index] end
+	end
+
+	for i = 0, math.min(w - 1, #values - startIndex) do
+		local value = values[startIndex + i]
+		local normalized = 0
+		if (maxValue > minValue) then
+			normalized = (value - minValue) / (maxValue - minValue)
+		end
+		local columnHeight = math.max(1, math.floor(normalized * (h - 1)) + 1)
+		for row = 0, columnHeight - 1 do
+			local py = y + h - 1 - row
+			fill(x + i, py, 1, 1, theme.accent)
+		end
+	end
+end
+
+local function drawHeader()
+	fill(1, 1, width, 1, theme.bg)
+	writeAt(3, 1, t("title"), theme.text, theme.bg)
+
+	local balanceText = t("no_balance")
+	if (state.account ~= nil) then
+		balanceText = "$" .. tostring(state.account.balance)
+	end
+	local coinText = " $ "
+	local balanceX = math.max(20, width - #balanceText - #coinText - 3)
+	writeAt(balanceX, 1, balanceText, theme.text, theme.bg)
+	statusChip(balanceX + #balanceText + 1, 1, "$", theme.coin, theme.coinText)
+
+	fill(1, 2, width, 1, theme.muted)
+	local subtitle = state.currentPlayer and (t("player") .. ": " .. state.currentPlayer) or t("no_player")
+	centerText(2, trimText(subtitle, width - 4), theme.sub, theme.muted)
+end
+
+local function drawSleepPage()
+	clear()
+	state.buttons = {}
+	local cardWidth = math.min(44, width - 6)
+	local cardX = math.max(3, math.floor((width - cardWidth) / 2))
+	local cardY = math.max(4, math.floor(height / 2) - 5)
+	flatPanel(cardX, cardY, cardWidth, 10, "")
+	centerText(cardY + 2, t("sleep_title"), theme.text, theme.card)
+	centerText(cardY + 4, t("sleep_subtitle"), theme.sub, theme.card)
+	centerText(cardY + 6, t("sleep_hint"), theme.accent, theme.card)
+	centerText(cardY + 8, t("sleep_hint_2"), theme.sub, theme.card)
+	addButton("wake", 1, 1, width, height)
+end
+
+local function drawHomePage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local panelX = 4
+	local panelY = 4
+	local panelW = width - 6
+	flatPanel(panelX, panelY, panelW, 8, serverData.bankName or "Atlas Bank")
+
+	if (state.currentPlayer ~= nil) then
+		writeAt(panelX + 2, panelY + 2, trimText(t("player") .. ": " .. state.currentPlayer, panelW - 4), theme.accent, theme.card)
+	else
+		writeAt(panelX + 2, panelY + 2, trimText(t("no_player"), panelW - 4), theme.warning, theme.card)
+	end
+
+	if (state.account ~= nil) then
+		writeAt(panelX + 2, panelY + 4, trimText(t("account_ready"), panelW - 4), theme.text, theme.card)
+		writeAt(panelX + 2, panelY + 5, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), panelW - 4), theme.sub, theme.card)
+	else
+		writeAt(panelX + 2, panelY + 4, trimText(t("no_account"), panelW - 4), theme.text, theme.card)
+		writeAt(panelX + 2, panelY + 5, trimText(t("assist"), panelW - 4), theme.sub, theme.card)
+	end
+
+	local buttonX = 4
+	local buttonY = 14
+	local buttonWidth = math.min(24, width - 8)
+	if (state.account ~= nil) then
+		roundedButton("account", buttonX, buttonY, buttonWidth, t("my_account"), theme.success, theme.successText)
+	else
+		roundedButton("register", buttonX, buttonY, buttonWidth, t("create_account"), theme.success, theme.successText)
+	end
+	roundedButton("market", buttonX, buttonY + 4, buttonWidth, t("market"), theme.primary, theme.primaryText)
+	roundedButton("help", buttonX, buttonY + 8, buttonWidth, t("help"), theme.warning, theme.warningText)
+	roundedButton("sleep", width - 16, height - 4, 13, t("sleep"), theme.danger, theme.dangerText)
+end
+
+local function drawRegisterPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local panelX = 4
+	local panelY = 4
+	local panelW = width - 6
+	flatPanel(panelX, panelY, panelW, 10, t("register_title"))
+	writeAt(panelX + 2, panelY + 2, trimText(t("register_desc"), panelW - 4), theme.text, theme.card)
+	if (state.currentPlayer ~= nil) then
+		writeAt(panelX + 2, panelY + 5, trimText(t("player") .. ": " .. state.currentPlayer, panelW - 4), theme.accent, theme.card)
+		roundedButton("register_confirm", panelX + 2, panelY + 7, panelW - 4, t("register_button"), theme.success, theme.successText)
+	else
+		writeAt(panelX + 2, panelY + 5, trimText(t("register_need_player"), panelW - 4), theme.warning, theme.card)
+	end
+
+	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton("help", width - 16, height - 4, 13, t("help"), theme.warning, theme.warningText)
+end
+
+local function drawAccountPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local panelX = 4
+	local panelY = 4
+	local panelW = width - 6
+	flatPanel(panelX, panelY, panelW, 11, t("account_title"))
+	if (state.account ~= nil) then
+		writeAt(panelX + 2, panelY + 2, trimText(t("player") .. ": " .. (state.account.playerName or state.currentPlayer or "?"), panelW - 4), theme.text, theme.card)
+		writeAt(panelX + 2, panelY + 4, trimText(t("key") .. ": " .. tostring(state.accountKey), panelW - 4), theme.sub, theme.card)
+		writeAt(panelX + 2, panelY + 6, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), panelW - 4), theme.accent, theme.card)
+		writeAt(panelX + 2, panelY + 8, trimText(t("status") .. ": " .. t("status_online"), panelW - 4), theme.sub, theme.card)
+	else
+		writeAt(panelX + 2, panelY + 4, trimText(t("no_account"), panelW - 4), theme.warning, theme.card)
+	end
+
+	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton("market", 19, height - 4, 14, t("market"), theme.success, theme.successText)
+	roundedButton("help", width - 16, height - 4, 13, t("help"), theme.warning, theme.warningText)
+end
+
+local function drawMarketPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local listX = 3
+	local listY = 4
+	local listW = math.max(20, math.floor(width * 0.33))
+	local listH = height - 8
+	flatPanel(listX, listY, listW, listH, t("market_title"))
+
+	local quote = selectedQuote()
+	local detailX = listX + listW + 2
+	local detailW = width - detailX - 2
+	flatPanel(detailX, listY, detailW, listH, quote and quote.name or t("select_asset"))
+
+	if (#state.quotes == 0) then
+		writeAt(listX + 2, listY + 3, trimText(t("market_empty"), listW - 4), theme.sub, theme.card)
+	else
+		local maxVisible = math.max(3, math.floor((listH - 4) / 3))
+		for index, assetQuote in ipairs(state.quotes) do
+			if (index > maxVisible) then
+				break
+			end
+			local buttonBg = (assetQuote.id == state.selectedAsset) and theme.header or theme.cardDark
+			local buttonFg = (assetQuote.id == state.selectedAsset) and theme.cardDark or theme.text
+			local label = trimText(assetQuote.name, listW - 6)
+			fill(listX + 2, listY + 2 + ((index - 1) * 3), listW - 4, 2, buttonBg)
+			writeAt(listX + 3, listY + 3 + ((index - 1) * 3), label, buttonFg, buttonBg)
+			addButton("asset:" .. assetQuote.id, listX + 2, listY + 2 + ((index - 1) * 3), listW - 4, 2)
+		end
+	end
+
+	if (quote ~= nil) then
+		writeAt(detailX + 2, listY + 3, trimText(t("buy_price") .. ": " .. tostring(quote.depositPrice) .. " " .. t("currency"), detailW - 4), theme.accent, theme.card)
+		writeAt(detailX + 2, listY + 5, trimText(t("sell_price") .. ": " .. tostring(quote.withdrawPrice) .. " " .. t("currency"), detailW - 4), theme.text, theme.card)
+		writeAt(detailX + 2, listY + 7, trimText(t("stock") .. ": " .. tostring(quote.stock), detailW - 4), theme.sub, theme.card)
+		writeAt(detailX + 2, listY + 9, trimText(t("withdraw_max") .. ": " .. tostring(quote.maxWithdraw), detailW - 4), theme.sub, theme.card)
+		writeAt(detailX + 2, listY + 12, t("graph"), theme.text, theme.card)
+		drawGraph(detailX + 2, listY + 14, detailW - 4, math.max(5, listH - 17), state.history[quote.id] or {})
+	else
+		writeAt(detailX + 2, listY + 4, trimText(t("select_asset"), detailW - 4), theme.sub, theme.card)
+	end
+
+	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton("help", width - 16, height - 4, 13, t("help"), theme.warning, theme.warningText)
+end
+
+local function drawHelpPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local panelX = 4
+	local panelY = 4
+	local panelW = width - 6
+	local panelH = height - 8
+	flatPanel(panelX, panelY, panelW, panelH, t("help_title"))
+
+	local y = panelY + 3
+	for _, lineText in ipairs(localization[lang].help_lines) do
+		if (y >= panelY + panelH - 4) then
+			break
+		end
+		writeAt(panelX + 2, y, trimText(lineText, panelW - 4), theme.text, theme.card)
+		y = y + 2
+	end
+
+	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton("sleep", width - 16, height - 4, 13, t("sleep"), theme.danger, theme.dangerText)
+end
+
+local function redraw()
+	if (state.page == "sleep") then
+		drawSleepPage()
+	elseif (state.page == "register") then
+		drawRegisterPage()
+	elseif (state.page == "account") then
+		drawAccountPage()
+	elseif (state.page == "market") then
+		drawMarketPage()
+	elseif (state.page == "help") then
+		drawHelpPage()
+	else
+		drawHomePage()
+	end
+end
+
+local function createAccount()
+	if (state.currentPlayer == nil) then
+		return
+	end
 	local ok, success, response = pcall(bankapi.newAccountForPlayer, state.currentPlayer, state.currentPlayer, colorFromName(state.currentPlayer))
 	if (ok and success and response ~= nil) then
 		sendPlayerMessage(state.currentPlayer, t("register_chat_1") .. tostring(response.key) .. t("register_chat_2"))
-		loadAccountForCurrentPlayer()
-		refreshAll()
-		showPage("account")
-	else
-		widgets.registerDetected:setText(t("register_error"))
-		app:render()
+		refreshPlayerAndAccount()
+		state.page = "account"
 	end
+	redraw()
 end
 
-widgets.header = makeFrame(root, {
-	x = 1,
-	y = 1,
-	width = width,
-	height = 4,
-	bg = theme.bg,
-	border = { color = theme.bg }
-})
-
-widgets.headerBar = makeLabel(widgets.header, {
-	x = 3,
-	y = 1,
-	width = width - 4,
-	height = 1,
-	text = t("bank_name"),
-	align = "center",
-	bg = theme.header,
-	fg = theme.headerText
-})
-
-widgets.headerSubtitle = makeLabel(widgets.header, {
-	x = 1,
-	y = 3,
-	width = width,
-	height = 1,
-	text = t("wait"),
-	align = "center",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-pages.sleep = makeFrame(root, {
-	x = 1,
-	y = 5,
-	width = width,
-	height = height - 4,
-	bg = theme.bg
-})
-
-makeFrame(pages.sleep, {
-	x = math.max(4, math.floor(width / 2) - 20),
-	y = math.max(3, math.floor((height - 4) / 2) - 5),
-	width = 40,
-	height = 11,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-makeLabel(pages.sleep, {
-	x = math.max(2, math.floor(width / 2) - 12),
-	y = math.max(5, math.floor((height - 4) / 2) - 2),
-	width = 24,
-	height = 1,
-	text = t("sleep_title"),
-	align = "center",
-	bg = theme.bg,
-	fg = theme.text
-})
-
-makeLabel(pages.sleep, {
-	x = math.max(2, math.floor(width / 2) - 18),
-	y = math.max(7, math.floor((height - 4) / 2)),
-	width = 36,
-	height = 1,
-	text = t("sleep_subtitle"),
-	align = "center",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-makeButton(pages.sleep, {
-	x = math.max(6, math.floor(width / 2) - 18),
-	y = math.max(10, math.floor((height - 4) / 2) + 2),
-	width = 36,
-	height = 3,
-	label = t("sleep_hint"),
-	bg = theme.success,
-	fg = theme.successText,
-	border = { color = theme.success },
-	onClick = function()
-		showPage("home")
+local function handleAction(action)
+	if (action == nil) then
+		return
 	end
-})
-
-makeLabel(pages.sleep, {
-	x = 1,
-	y = height - 7,
-	width = width,
-	height = 1,
-	text = t("sleep_detail"),
-	align = "center",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-local contentHeight = height - 6
-
-pages.home = makeFrame(root, {
-	x = 1,
-	y = 5,
-	width = width,
-	height = contentHeight,
-	bg = theme.bg,
-	visible = false
-})
-
-makeFrame(pages.home, {
-	x = 4,
-	y = 2,
-	width = width - 8,
-	height = 9,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-widgets.homePlayer = makeLabel(pages.home, {
-	x = 6,
-	y = 4,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.accent
-})
-
-widgets.homeStatus = makeLabel(pages.home, {
-	x = 6,
-	y = 6,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.text
-})
-
-widgets.homeBalance = makeLabel(pages.home, {
-	x = 6,
-	y = 8,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-local homePrimaryWidth = math.max(18, math.floor((width - 18) / 2))
-widgets.homePrimary = makeButton(pages.home, {
-	x = 6,
-	y = 14,
-	width = homePrimaryWidth,
-	height = 3,
-	label = t("create_account"),
-	bg = theme.success,
-	fg = theme.successText,
-	border = { color = theme.success }
-})
-
-makeButton(pages.home, {
-	x = 8 + homePrimaryWidth,
-	y = 14,
-	width = homePrimaryWidth,
-	height = 3,
-	label = t("market"),
-	bg = theme.header,
-	fg = theme.headerText,
-	border = { color = theme.header },
-	onClick = function()
-		showPage("market")
+	if (action == "wake") then
+		state.page = "home"
+	elseif (action == "sleep") then
+		state.page = "sleep"
+	elseif (action == "home") then
+		state.page = "home"
+	elseif (action == "register") then
+		state.page = "register"
+	elseif (action == "register_confirm") then
+		createAccount()
+		return
+	elseif (action == "account") then
+		state.page = "account"
+	elseif (action == "market") then
+		state.page = "market"
+	elseif (action == "help") then
+		state.page = "help"
+	elseif (string.sub(action, 1, 6) == "asset:") then
+		state.selectedAsset = string.sub(action, 7)
+		state.page = "market"
 	end
-})
-
-makeButton(pages.home, {
-	x = 4,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("help"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("help")
-	end
-})
-
-makeButton(pages.home, {
-	x = width - 15,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("sleep"),
-	bg = theme.danger,
-	fg = colors.white,
-	border = { color = theme.danger },
-	onClick = function()
-		showPage("sleep")
-	end
-})
-
-pages.register = makeFrame(root, {
-	x = 1,
-	y = 5,
-	width = width,
-	height = contentHeight,
-	bg = theme.bg,
-	visible = false
-})
-
-makeFrame(pages.register, {
-	x = 4,
-	y = 2,
-	width = width - 8,
-	height = 11,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-makeLabel(pages.register, {
-	x = 6,
-	y = 4,
-	width = width - 12,
-	height = 1,
-	text = t("register_title"),
-	bg = theme.bg,
-	fg = theme.text
-})
-
-makeLabel(pages.register, {
-	x = 6,
-	y = 6,
-	width = width - 12,
-	height = 2,
-	text = t("register_text"),
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-widgets.registerDetected = makeLabel(pages.register, {
-	x = 6,
-	y = 9,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.accent
-})
-
-makeButton(pages.register, {
-	x = 6,
-	y = 14,
-	width = width - 12,
-	height = 3,
-	label = t("register_button"),
-	bg = theme.success,
-	fg = theme.successText,
-	border = { color = theme.success },
-	onClick = createAccountForCurrentPlayer
-})
-
-makeButton(pages.register, {
-	x = 4,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("back"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("home")
-	end
-})
-
-makeButton(pages.register, {
-	x = width - 15,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("help"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("help")
-	end
-})
-
-pages.account = makeFrame(root, {
-	x = 1,
-	y = 5,
-	width = width,
-	height = contentHeight,
-	bg = theme.bg,
-	visible = false
-})
-
-makeFrame(pages.account, {
-	x = 4,
-	y = 2,
-	width = width - 8,
-	height = 12,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-widgets.accountPlayer = makeLabel(pages.account, {
-	x = 6,
-	y = 4,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.text
-})
-
-widgets.accountKey = makeLabel(pages.account, {
-	x = 6,
-	y = 6,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-widgets.accountBalance = makeLabel(pages.account, {
-	x = 6,
-	y = 8,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.accent
-})
-
-widgets.accountStatus = makeLabel(pages.account, {
-	x = 6,
-	y = 10,
-	width = width - 12,
-	height = 1,
-	text = "",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-makeButton(pages.account, {
-	x = 4,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("back"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("home")
-	end
-})
-
-makeButton(pages.account, {
-	x = 18,
-	y = contentHeight - 4,
-	width = 14,
-	height = 3,
-	label = t("market"),
-	bg = theme.success,
-	fg = theme.successText,
-	border = { color = theme.success },
-	onClick = function()
-		showPage("market")
-	end
-})
-
-makeButton(pages.account, {
-	x = width - 15,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("help"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("help")
-	end
-})
-
-pages.market = makeFrame(root, {
-	x = 1,
-	y = 5,
-	width = width,
-	height = contentHeight,
-	bg = theme.bg,
-	visible = false
-})
-
-pages.marketContent = makeFrame(pages.market, {
-	x = 2,
-	y = 1,
-	width = width - 2,
-	height = contentHeight - 1,
-	bg = theme.bg
-})
-
-local listWidth = math.max(24, math.floor(width * 0.34))
-makeFrame(pages.marketContent, {
-	x = 2,
-	y = 2,
-	width = listWidth + 4,
-	height = contentHeight - 8,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-widgets.marketPlaceholder = makeLabel(pages.marketContent, {
-	x = 4,
-	y = 4,
-	width = listWidth,
-	height = 1,
-	text = t("market_empty"),
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-local detailX = listWidth + 8
-local detailWidth = width - detailX - 2
-
-makeFrame(pages.marketContent, {
-	x = detailX,
-	y = 2,
-	width = detailWidth,
-	height = contentHeight - 8,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-widgets.marketName = makeLabel(pages.marketContent, {
-	x = detailX + 2,
-	y = 4,
-	width = detailWidth - 4,
-	height = 1,
-	text = t("select_asset"),
-	bg = theme.bg,
-	fg = theme.text
-})
-
-widgets.marketBuy = makeLabel(pages.marketContent, {
-	x = detailX + 2,
-	y = 6,
-	width = detailWidth - 4,
-	height = 1,
-	text = "-",
-	bg = theme.bg,
-	fg = theme.accent
-})
-
-widgets.marketSell = makeLabel(pages.marketContent, {
-	x = detailX + 2,
-	y = 8,
-	width = detailWidth - 4,
-	height = 1,
-	text = "-",
-	bg = theme.bg,
-	fg = theme.text
-})
-
-widgets.marketStock = makeLabel(pages.marketContent, {
-	x = detailX + 2,
-	y = 10,
-	width = detailWidth - 4,
-	height = 1,
-	text = "-",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-widgets.marketWithdraw = makeLabel(pages.marketContent, {
-	x = detailX + 2,
-	y = 12,
-	width = detailWidth - 4,
-	height = 1,
-	text = "-",
-	bg = theme.bg,
-	fg = theme.sub
-})
-
-makeLabel(pages.marketContent, {
-	x = detailX + 2,
-	y = 14,
-	width = detailWidth - 4,
-	height = 1,
-	text = t("graph"),
-	bg = theme.bg,
-	fg = theme.text
-})
-
-widgets.marketChart = add(pages.marketContent, app:createChart({
-	x = detailX + 2,
-	y = 16,
-	width = detailWidth - 4,
-	height = math.max(6, contentHeight - 25),
-	data = {},
-	labels = {},
-	chartType = "line",
-	showAxis = true,
-	showLabels = false,
-	placeholder = t("market_empty"),
-	lineColor = theme.accent,
-	barColor = theme.accent,
-	axisColor = theme.sub,
-	bg = theme.bg,
-	fg = theme.text
-}))
-
-makeButton(pages.market, {
-	x = 4,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("back"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("home")
-	end
-})
-
-makeButton(pages.market, {
-	x = width - 15,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("help"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("help")
-	end
-})
-
-pages.help = makeFrame(root, {
-	x = 1,
-	y = 5,
-	width = width,
-	height = contentHeight,
-	bg = theme.bg,
-	visible = false
-})
-
-makeFrame(pages.help, {
-	x = 4,
-	y = 2,
-	width = width - 8,
-	height = contentHeight - 8,
-	bg = theme.card,
-	border = { color = theme.header }
-})
-
-makeLabel(pages.help, {
-	x = 6,
-	y = 4,
-	width = width - 12,
-	height = 1,
-	text = t("help_title"),
-	bg = theme.bg,
-	fg = theme.text
-})
-
-for index, line in ipairs(localization[lang].help_lines) do
-	makeLabel(pages.help, {
-		x = 6,
-		y = 6 + ((index - 1) * 2),
-		width = width - 12,
-		height = 1,
-		text = line,
-		bg = theme.bg,
-		fg = theme.sub
-	})
+	redraw()
 end
 
-makeButton(pages.help, {
-	x = 4,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("back"),
-	bg = theme.cardAlt,
-	fg = theme.text,
-	border = { color = theme.border },
-	onClick = function()
-		showPage("home")
+refreshPlayerAndAccount()
+refreshQuotes()
+redraw()
+
+local playerTimer = os.startTimer(2)
+local quoteTimer = os.startTimer(8)
+
+while true do
+	local eventData = {os.pullEvent()}
+	local event = eventData[1]
+
+	if (event == "monitor_touch" and eventData[2] == monitorSide) then
+		handleAction(hitButton(eventData[3], eventData[4]))
+	elseif (event == "timer") then
+		if (eventData[2] == playerTimer) then
+			refreshPlayerAndAccount()
+			if (state.page ~= "sleep") then
+				redraw()
+			end
+			playerTimer = os.startTimer(2)
+		elseif (eventData[2] == quoteTimer) then
+			refreshQuotes()
+			if (state.page == "market" or state.page == "home" or state.page == "account") then
+				redraw()
+			end
+			quoteTimer = os.startTimer(8)
+		end
 	end
-})
-
-makeButton(pages.help, {
-	x = width - 15,
-	y = contentHeight - 4,
-	width = 12,
-	height = 3,
-	label = t("sleep"),
-	bg = theme.danger,
-	fg = colors.white,
-	border = { color = theme.danger },
-	onClick = function()
-		showPage("sleep")
-	end
-})
-
-loadAccountForCurrentPlayer()
-loadQuotes()
-refreshAll()
-showPage("sleep")
-
-app:spawnThread(function(ctx)
-	while true do
-		loadAccountForCurrentPlayer()
-		refreshAll()
-		ctx:sleep(2)
-	end
-end, {
-	name = "AtlasBankPlayerPoll"
-})
-
-app:spawnThread(function(ctx)
-	while true do
-		loadQuotes()
-		refreshAll()
-		ctx:sleep(8)
-	end
-end, {
-	name = "AtlasBankMarketPoll"
-})
-
-app:run()
+end
