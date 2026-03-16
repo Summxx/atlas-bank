@@ -81,6 +81,14 @@ local localization = {
 		market_title = "Cours du marche",
 		market_empty = "Aucun actif charge.",
 		select_asset = "Selectionnez un actif a gauche",
+		deposit_asset = "Depot",
+		withdraw_asset = "Retrait",
+		quantity = "Quantite",
+		confirm = "Valider",
+		clear = "Effacer",
+		close = "Fermer",
+		operation_done = "Operation enregistree",
+		operation_error = "Operation refusee",
 		buy_price = "Achat banque",
 		sell_price = "Retrait banque",
 		stock = "Reserve",
@@ -130,6 +138,14 @@ local localization = {
 		market_title = "Market rates",
 		market_empty = "No assets loaded.",
 		select_asset = "Select an asset on the left",
+		deposit_asset = "Deposit",
+		withdraw_asset = "Withdraw",
+		quantity = "Quantity",
+		confirm = "Confirm",
+		clear = "Clear",
+		close = "Close",
+		operation_done = "Operation recorded",
+		operation_error = "Operation rejected",
 		buy_price = "Bank buy",
 		sell_price = "Withdraw",
 		stock = "Reserve",
@@ -184,7 +200,10 @@ local state = {
 	quotes = {},
 	history = {},
 	selectedAsset = nil,
-	buttons = {}
+	buttons = {},
+	pendingOperation = nil,
+	pendingQuantity = "1",
+	flashMessage = nil
 }
 
 local function clear()
@@ -426,17 +445,26 @@ local function drawHeader()
 	fill(1, 2, width, 1, theme.header)
 	local subtitle = state.currentPlayer and (t("player") .. ": " .. state.currentPlayer) or t("no_player")
 	centerText(2, trimText(subtitle, width - 4), theme.headerText, theme.header)
+	if (state.flashMessage ~= nil) then
+		local message = trimText(state.flashMessage.text, width - 4)
+		local bg = state.flashMessage.success and theme.success or theme.danger
+		local fg = state.flashMessage.success and theme.successText or theme.dangerText
+		fill(1, 3, width, 1, bg)
+		centerText(3, message, fg, bg)
+	else
+		fill(1, 3, width, 1, theme.bg)
+	end
 end
 
 local function drawMainShell(activePrimary, activeSecondary)
 	local railX = 4
-	local railY = 5
+	local railY = 6
 	local railW = math.max(20, math.floor(width * 0.22))
 	local buttonW = railW - 2
 	local contentX = railX + railW + 2
-	local contentY = 4
+	local contentY = 5
 	local contentW = width - contentX - 3
-	local contentH = height - 8
+	local contentH = height - 9
 
 	roundedButton(activePrimary == "account" and "account" or "register", railX + 1, railY + 2, buttonW, state.account and t("my_account") or t("create_account"), theme.success, theme.successText)
 	roundedButton("market", railX + 1, railY + 7, buttonW, t("market"), theme.primary, theme.primaryText)
@@ -581,9 +609,60 @@ local function drawMarketPage()
 		writeAt(detailX + 2, listY + 9, trimText(t("withdraw_max") .. ": " .. tostring(quote.maxWithdraw), detailW - 4), theme.sub, theme.card)
 		writeAt(detailX + 2, listY + 12, t("graph"), theme.text, theme.card)
 		drawGraph(detailX + 2, listY + 14, detailW - 4, math.max(5, listH - 17), state.history[quote.id] or {})
+		if (state.accountKey ~= nil) then
+			roundedButton("deposit_asset", detailX + 2, listY + listH - 8, math.max(14, math.floor((detailW - 8) / 2)), t("deposit_asset"), theme.success, theme.successText)
+			roundedButton("withdraw_asset", detailX + 4 + math.max(14, math.floor((detailW - 8) / 2)), listY + listH - 8, math.max(14, math.floor((detailW - 8) / 2)), t("withdraw_asset"), theme.primary, theme.primaryText)
+		end
 	else
 		writeAt(detailX + 2, listY + 4, trimText(t("select_asset"), detailW - 4), theme.sub, theme.card)
 	end
+end
+
+local function drawQuantityPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local shell = drawMainShell("market", state.pendingOperation == "deposit" and theme.success or theme.primary)
+	local quote = selectedQuote()
+	local panelX = shell.contentX
+	local panelY = shell.contentY
+	local panelW = shell.contentW
+	local panelH = shell.contentH
+
+	flatPanel(panelX, panelY, panelW, panelH, quote and quote.name or t("select_asset"))
+	writeAt(panelX + 3, panelY + 3, trimText((state.pendingOperation == "deposit" and t("deposit_asset") or t("withdraw_asset")) .. " | " .. (quote and quote.name or "-"), panelW - 6), theme.text, theme.card)
+	writeAt(panelX + 3, panelY + 6, trimText(t("quantity") .. ": " .. tostring(state.pendingQuantity), panelW - 6), theme.accent, theme.card)
+
+	local keypadX = panelX + 3
+	local keypadY = panelY + 10
+	local keyW = 8
+	local gap = 2
+	local labels = {
+		{"1", "2", "3"},
+		{"4", "5", "6"},
+		{"7", "8", "9"},
+		{t("clear"), "0", t("confirm")}
+	}
+
+	for row = 1, #labels do
+		for col = 1, #labels[row] do
+			local label = labels[row][col]
+			local id = "qty:" .. label
+			local bg = theme.cardDark
+			local fg = theme.text
+			if (label == t("confirm")) then
+				bg = theme.success
+				fg = theme.successText
+			elseif (label == t("clear")) then
+				bg = theme.warning
+				fg = theme.warningText
+			end
+			roundedButton(id, keypadX + ((col - 1) * (keyW + gap)), keypadY + ((row - 1) * 5), keyW, label, bg, fg)
+		end
+	end
+
+	roundedButton("market", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
 end
 
 local function drawHelpPage()
@@ -619,6 +698,8 @@ local function redraw()
 		drawAccountPage()
 	elseif (state.page == "market") then
 		drawMarketPage()
+	elseif (state.page == "quantity") then
+		drawQuantityPage()
 	elseif (state.page == "help") then
 		drawHelpPage()
 	else
@@ -640,10 +721,48 @@ local function createAccount()
 	redraw()
 end
 
+local function resetFlashMessage()
+	state.flashMessage = nil
+end
+
+local function setFlashMessage(text, success)
+	state.flashMessage = {
+		text = text,
+		success = success == true
+	}
+end
+
+local function performPendingOperation()
+	local quote = selectedQuote()
+	local quantity = tonumber(state.pendingQuantity)
+	if (state.accountKey == nil or quote == nil or quantity == nil or quantity <= 0) then
+		setFlashMessage(t("operation_error"), false)
+		state.page = "market"
+		redraw()
+		return
+	end
+
+	local success, message
+	if (state.pendingOperation == "deposit") then
+		success, message = bankapi.depositAsset(state.accountKey, quote.id, quantity)
+	else
+		success, message = bankapi.withdrawAsset(state.accountKey, quote.id, quantity)
+	end
+
+	refreshPlayerAndAccount()
+	refreshQuotes()
+	setFlashMessage(message or (success and t("operation_done") or t("operation_error")), success)
+	state.pendingOperation = nil
+	state.pendingQuantity = "1"
+	state.page = "market"
+	redraw()
+end
+
 local function handleAction(action)
 	if (action == nil) then
 		return
 	end
+	resetFlashMessage()
 	if (action == "wake") then
 		state.page = "home"
 	elseif (action == "sleep") then
@@ -661,9 +780,31 @@ local function handleAction(action)
 		state.page = "market"
 	elseif (action == "help") then
 		state.page = "help"
+	elseif (action == "deposit_asset") then
+		state.pendingOperation = "deposit"
+		state.pendingQuantity = "1"
+		state.page = "quantity"
+	elseif (action == "withdraw_asset") then
+		state.pendingOperation = "withdraw"
+		state.pendingQuantity = "1"
+		state.page = "quantity"
 	elseif (string.sub(action, 1, 6) == "asset:") then
 		state.selectedAsset = string.sub(action, 7)
 		state.page = "market"
+	elseif (string.sub(action, 1, 4) == "qty:") then
+		local value = string.sub(action, 5)
+		if (value == t("clear")) then
+			state.pendingQuantity = "1"
+		elseif (value == t("confirm")) then
+			performPendingOperation()
+			return
+		else
+			if (state.pendingQuantity == "1") then
+				state.pendingQuantity = value
+			else
+				state.pendingQuantity = string.sub(state.pendingQuantity .. value, 1, 4)
+			end
+		end
 	end
 	redraw()
 end

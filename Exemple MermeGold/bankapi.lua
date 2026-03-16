@@ -1124,6 +1124,30 @@ function adjustAssetStock(assetId, amount)
 	return message.success, message.response
 end
 
+function depositAsset(key, assetId, quantity)
+	local message = {
+		action = "depositAsset",
+		key = key,
+		assetId = assetId,
+		quantity = quantity
+	}
+	rednet.send(bankServerID, message, "mermegold")
+	local sender, message = rednet.receive("mermegold")
+	return message.success, message.response
+end
+
+function withdrawAsset(key, assetId, quantity)
+	local message = {
+		action = "withdrawAsset",
+		key = key,
+		assetId = assetId,
+		quantity = quantity
+	}
+	rednet.send(bankServerID, message, "mermegold")
+	local sender, message = rednet.receive("mermegold")
+	return message.success, message.response
+end
+
 function waitForDisk(message)
 	waitScreen(message)
 	while (not fs.exists("disk")) do

@@ -70,7 +70,7 @@ local localization = {
 		see_catalog="View catalog",
 		buy="Buy",
 		cant_buy_missing_card={
-			"To buy, insert a Mermegold",
+			"To buy, insert an Atlas Bank",
 			"card into the disk drive."
 		},
 		buy_instructions={"Put the items you want to buy", "into my inventory"},
@@ -133,7 +133,7 @@ local localization = {
 		buy="Comprar",
 		cant_buy_missing_card={
 			"Para comprar, ingrese su tarjeta",
-			"Mermegold en la disquetera."
+			"Atlas Bank en la disquetera."
 		},
 		buy_instructions={"Ingrese los articulos que quiera", "comprar dentro de mi inventario"},
 		your_balance="Tu Balance",
@@ -194,7 +194,7 @@ local localization = {
 		see_catalog = "Katalog ansehen",
 		buy = "Kaufen",
 		cant_buy_missing_card = {
-			"Zum Kauf bitte eine Mermegold-Karte",
+			"Zum Kauf bitte eine Atlas-Bank-Karte",
 			"in das Laufwerk einlegen."
 		},
 		buy_instructions = {"Lege die Gegenstaende, die du kaufen moechtest,", "in mein Inventar"},
@@ -214,7 +214,7 @@ local shopName = localization[lang].default_shop_name
 if (not fs.exists("owner.txt")) then
 	if (diskdrive.isDiskPresent()) then
 		local tempClientData = bankapi.getClientData()
-		local f = fs.open("disk/mermegold.txt", "r")
+		local f = fs.open("disk/atlasbank.txt", "r")
 		if (f ~= nil) then
 			local key = f.readLine()
 			if (tempClientData[key] ~= nil) then
@@ -244,7 +244,7 @@ local currentAccount = 0
  
 local function readDisk()
 	if (fs.exists("disk")) then
-		local f = fs.open("disk/mermegold.txt", "r")
+		local f = fs.open("disk/atlasbank.txt", "r")
 		if (f ~= nil) then
 			local value = f.readLine()
 			if (value ~= nil) then

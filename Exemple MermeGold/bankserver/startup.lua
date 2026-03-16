@@ -79,8 +79,14 @@ local localization = {
 		success_update = "Mise a jour reussie",
 		success_account = "Compte cree avec succes",
 		account_deleted = "Compte supprime avec succes",
+		success_asset_deposit = "Depot d'actif enregistre",
+		success_asset_withdraw = "Retrait d'actif enregistre",
 		withdraw_description = "Retrait bancaire",
 		deposit_description = "Depot bancaire",
+		asset_deposit_description = "Depot actif",
+		asset_withdraw_description = "Retrait actif",
+		error_asset_disabled = "Actif indisponible pour cette operation",
+		error_asset_stock = "Reserve insuffisante pour ce retrait",
 		password = "Mot de passe admin",
 		password_explanation = "Mot de passe utilise par les terminaux admin",
 		reserve_ratio = "Taux de reserve",
@@ -108,8 +114,14 @@ local localization = {
 		success_update = "Update successful",
 		success_account = "Account created successfully",
 		account_deleted = "Account deleted successfully",
+		success_asset_deposit = "Asset deposit recorded",
+		success_asset_withdraw = "Asset withdrawal recorded",
 		withdraw_description = "Bank withdrawal",
 		deposit_description = "Bank deposit",
+		asset_deposit_description = "Asset deposit",
+		asset_withdraw_description = "Asset withdrawal",
+		error_asset_disabled = "Asset unavailable for this operation",
+		error_asset_stock = "Insufficient reserve for this withdrawal",
 		password = "Admin password",
 		password_explanation = "Password used by admin terminals",
 		reserve_ratio = "Reserve ratio",
@@ -307,6 +319,93 @@ local function quoteAsset(assetId, asset)
 		allowDeposit = asset.allowDeposit == true,
 		allowWithdraw = asset.allowWithdraw == true
 	}
+end
+
+local function applyAssetDeposit(data)
+	loadClients()
+	local key = tostring(data.key)
+	local assetId = tostring(data.assetId)
+	local quantity = tonumber(data.quantity)
+	if (clientData[key] == nil) then
+		return false, localization[settings.lang].error_account
+	end
+	if (assets[assetId] == nil) then
+		return false, localization[settings.lang].error_unknownasset
+	end
+	if (quantity == nil or quantity <= 0 or quantity % 1 ~= 0) then
+		return false, localization[settings.lang].error_invalidamount
+	end
+
+	local asset = assets[assetId]
+	if (asset.allowDeposit ~= true) then
+		return false, localization[settings.lang].error_asset_disabled
+	end
+
+	local quote = quoteAsset(assetId, asset)
+	local totalValue = round2(quote.depositPrice * quantity)
+
+	clientData[key].balance = round2(clientData[key].balance + totalValue)
+	asset.stock = math.max(0, math.floor((asset.stock or 0) + quantity))
+
+	updateClientFile(key)
+	saveAssets()
+	appendTransactionToLog(
+		key,
+		key,
+		-totalValue,
+		clientData[key].balance,
+		getCurrentTime(),
+		localization[settings.lang].asset_deposit_description .. " | " .. resolveAssetName(asset) .. " x" .. tostring(quantity)
+	)
+
+	return true, localization[settings.lang].success_asset_deposit
+end
+
+local function applyAssetWithdraw(data)
+	loadClients()
+	local key = tostring(data.key)
+	local assetId = tostring(data.assetId)
+	local quantity = tonumber(data.quantity)
+	if (clientData[key] == nil) then
+		return false, localization[settings.lang].error_account
+	end
+	if (assets[assetId] == nil) then
+		return false, localization[settings.lang].error_unknownasset
+	end
+	if (quantity == nil or quantity <= 0 or quantity % 1 ~= 0) then
+		return false, localization[settings.lang].error_invalidamount
+	end
+
+	local asset = assets[assetId]
+	if (asset.allowWithdraw ~= true) then
+		return false, localization[settings.lang].error_asset_disabled
+	end
+
+	local quote = quoteAsset(assetId, asset)
+	if (quantity > quote.maxWithdraw) then
+		return false, localization[settings.lang].error_asset_stock
+	end
+
+	local totalValue = round2(quote.withdrawPrice * quantity)
+	if (clientData[key].balance < totalValue) then
+		return false, localization[settings.lang].error_notenoughbalance
+	end
+
+	clientData[key].balance = round2(clientData[key].balance - totalValue)
+	asset.stock = math.max(0, math.floor((asset.stock or 0) - quantity))
+
+	updateClientFile(key)
+	saveAssets()
+	appendTransactionToLog(
+		key,
+		key,
+		totalValue,
+		clientData[key].balance,
+		getCurrentTime(),
+		localization[settings.lang].asset_withdraw_description .. " | " .. resolveAssetName(asset) .. " x" .. tostring(quantity)
+	)
+
+	return true, localization[settings.lang].success_asset_withdraw
 end
 
 local function getAssetQuotes(data)
@@ -565,6 +664,10 @@ function listen()
 			processRequest(getAssetQuotes, sender, message)
 		elseif (message.action == "adjustAssetStock") then
 			processRequest(adjustAssetStock, sender, message)
+		elseif (message.action == "depositAsset") then
+			processRequest(applyAssetDeposit, sender, message)
+		elseif (message.action == "withdrawAsset") then
+			processRequest(applyAssetWithdraw, sender, message)
 		else
 			rednet.send(sender, {success = false, response = "Requete invalide"}, "mermegold")
 		end

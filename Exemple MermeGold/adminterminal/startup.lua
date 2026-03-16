@@ -31,6 +31,8 @@ local localization = {
 		assign_card = "Lier une carte / un telephone",
 		market = "Consulter le marche",
 		adjust_stock = "Ajuster les reserves",
+		deposit_asset = "Crediter un actif",
+		withdraw_asset = "Debiter un actif",
 		logout = "Quitter",
 		new_account_steps = {"Nom du joueur", "Couleur representative"},
 		transaction_steps = {"Compte expediteur", "Compte destinataire", "Montant", "Description"},
@@ -41,6 +43,7 @@ local localization = {
 		insert_card = "Veuillez inserer une disquette ou un telephone dans le lecteur",
 		confirm_deletion = "Voulez-vous vraiment supprimer ce compte ?",
 		stock_steps = {"Choisir l'actif", "Quantite a ajouter ou retirer"},
+		asset_account_steps = {"Choisir le compte", "Choisir l'actif", "Quantite"},
 		stock_done = "Reserve mise a jour",
 		installed = "Installation terminee"
 	},
@@ -53,6 +56,8 @@ local localization = {
 		assign_card = "Link card / phone",
 		market = "View market",
 		adjust_stock = "Adjust reserves",
+		deposit_asset = "Credit asset",
+		withdraw_asset = "Debit asset",
 		logout = "Exit",
 		new_account_steps = {"Player name", "Representative color"},
 		transaction_steps = {"Sender account", "Recipient account", "Amount", "Description"},
@@ -63,6 +68,7 @@ local localization = {
 		insert_card = "Please insert a disk or phone in the drive",
 		confirm_deletion = "Are you sure you want to delete this account?",
 		stock_steps = {"Choose asset", "Quantity to add or remove"},
+		asset_account_steps = {"Choose account", "Choose asset", "Quantity"},
 		stock_done = "Reserve updated",
 		installed = "Install finished"
 	}
@@ -102,6 +108,8 @@ while true do
 		{option = "log", text = localization[lang].record},
 		{option = "market", text = localization[lang].market},
 		{option = "stock", text = localization[lang].adjust_stock},
+		{option = "deposit_asset", text = localization[lang].deposit_asset},
+		{option = "withdraw_asset", text = localization[lang].withdraw_asset},
 		{option = "assigncard", text = localization[lang].assign_card},
 		{option = "delete", text = localization[lang].delete_account},
 		{option = "logout", text = localization[lang].logout},
@@ -151,6 +159,30 @@ while true do
 		local quantity = bankapi.inputNumberScreen(localization[lang].stock_steps, 2)
 		if (quantity == nil) then break end
 		local success, message = bankapi.adjustAssetStock(assetId, tonumber(quantity))
+		bankapi.responseScreen(success, message)
+
+	elseif (command == "deposit_asset") then
+		local steps = localization[lang].asset_account_steps
+		local account = bankapi.selectAccountScreen(steps, 1, 0)
+		if (account == nil) then break end
+		local options = assetOptionList()
+		local assetId = bankapi.optionMenu(localization[lang].deposit_asset, options, 2, 40)
+		if (assetId == nil) then break end
+		local quantity = bankapi.inputNumberScreen(steps, 3)
+		if (quantity == nil) then break end
+		local success, message = bankapi.depositAsset(account, assetId, tonumber(quantity))
+		bankapi.responseScreen(success, message)
+
+	elseif (command == "withdraw_asset") then
+		local steps = localization[lang].asset_account_steps
+		local account = bankapi.selectAccountScreen(steps, 1, 0)
+		if (account == nil) then break end
+		local options = assetOptionList()
+		local assetId = bankapi.optionMenu(localization[lang].withdraw_asset, options, 2, 40)
+		if (assetId == nil) then break end
+		local quantity = bankapi.inputNumberScreen(steps, 3)
+		if (quantity == nil) then break end
+		local success, message = bankapi.withdrawAsset(account, assetId, tonumber(quantity))
 		bankapi.responseScreen(success, message)
 
 	elseif (command == "assigncard") then
