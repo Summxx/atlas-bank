@@ -7,14 +7,36 @@ local shrekbox = require("shrekbox")
 local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
+-- Vous pouvez utiliser un cote ("top") ou un nom exact de peripherique.
 local inventoryConfig = {
-	depositSide = "top",
-	vaultSide = "back",
-	outputSide = "bottom"
+	depositPeripheral = "top",
+	vaultPeripheral = "back",
+	outputPeripheral = "bottom"
 }
 
 local function hasMethod(object, methodName)
 	return object ~= nil and type(object[methodName]) == "function"
+end
+
+local function resolvePeripheral(reference, requiredMethod)
+	if (reference == nil or reference == "") then
+		return nil, nil
+	end
+	local peripheralObject = peripheral.wrap(reference)
+	if (peripheralObject ~= nil and (requiredMethod == nil or hasMethod(peripheralObject, requiredMethod))) then
+		return peripheralObject, reference
+	end
+
+	for _, name in ipairs(peripheral.getNames()) do
+		if (name == reference) then
+			local namedPeripheral = peripheral.wrap(name)
+			if (namedPeripheral ~= nil and (requiredMethod == nil or hasMethod(namedPeripheral, requiredMethod))) then
+				return namedPeripheral, name
+			end
+		end
+	end
+
+	return nil, nil
 end
 
 if (monitor == nil) then
@@ -72,7 +94,7 @@ local localization = {
 		sleep = "Veille",
 		back = "Retour",
 		register_title = "Ouverture de compte",
-		register_desc = "Le player detector a droite identifie automatiquement le joueur proche.",
+		register_desc = "Le player detector identifie automatiquement le joueur proche.",
 		register_button = "Ouvrir mon compte",
 		register_need_player = "Approchez-vous du detecteur pour ouvrir un compte.",
 		register_success = "Compte cree avec succes.",
@@ -108,7 +130,7 @@ local localization = {
 		graph = "Graphique live",
 		help_title = "Guide rapide",
 		help_lines = {
-			"1. Placez-vous a droite du terminal pour etre detecte.",
+			"1. Placez-vous pres du detecteur du terminal pour etre identifie.",
 			"2. Creez votre compte si necessaire.",
 			"3. Consultez ensuite votre solde et les cours du marche.",
 			"4. Deposez vos objets dans le container du haut.",
@@ -137,7 +159,7 @@ local localization = {
 		sleep = "Sleep",
 		back = "Back",
 		register_title = "Open account",
-		register_desc = "The player detector on the right automatically identifies the nearby player.",
+		register_desc = "The player detector automatically identifies the nearby player.",
 		register_button = "Open my account",
 		register_need_player = "Stand near the detector to open an account.",
 		register_success = "Account created successfully.",
@@ -173,7 +195,7 @@ local localization = {
 		graph = "Live graph",
 		help_title = "Quick guide",
 		help_lines = {
-			"1. Stand on the right side of the terminal to be detected.",
+			"1. Stand near the terminal detector to be identified.",
 			"2. Create your account if needed.",
 			"3. Then check your balance and market rates.",
 			"4. Put your items in the top deposit inventory.",
@@ -365,24 +387,17 @@ local function sendPlayerMessage(playerName, text)
 	end)
 end
 
-local function getInventory(side)
-	local inventory = peripheral.wrap(side)
+local function getInventory(reference)
+	local inventory = select(1, resolvePeripheral(reference, "list"))
 	if (inventory == nil or not hasMethod(inventory, "list")) then
 		return nil
 	end
 	return inventory
 end
 
-local function getInventoryName(side)
-	local inventory = peripheral.wrap(side)
-	if (inventory == nil) then
-		return nil
-	end
-	local ok, name = pcall(peripheral.getName, inventory)
-	if (ok and type(name) == "string") then
-		return name
-	end
-	return side
+local function getInventoryName(reference)
+	local _, name = resolvePeripheral(reference, "list")
+	return name
 end
 
 local function normalizeItemToken(value)
@@ -872,10 +887,10 @@ local function setFlashMessage(text, success)
 end
 
 local function executeDepositOperation(quote, quantity)
-	local depositInventory = getInventory(inventoryConfig.depositSide)
-	local vaultInventory = getInventory(inventoryConfig.vaultSide)
-	local depositName = getInventoryName(inventoryConfig.depositSide)
-	local vaultName = getInventoryName(inventoryConfig.vaultSide)
+	local depositInventory = getInventory(inventoryConfig.depositPeripheral)
+	local vaultInventory = getInventory(inventoryConfig.vaultPeripheral)
+	local depositName = getInventoryName(inventoryConfig.depositPeripheral)
+	local vaultName = getInventoryName(inventoryConfig.vaultPeripheral)
 
 	if (depositInventory == nil or vaultInventory == nil or depositName == nil or vaultName == nil) then
 		return false, t("error_missing_inventory")
@@ -896,10 +911,10 @@ local function executeDepositOperation(quote, quantity)
 end
 
 local function executeWithdrawOperation(quote, quantity)
-	local vaultInventory = getInventory(inventoryConfig.vaultSide)
-	local outputInventory = getInventory(inventoryConfig.outputSide)
-	local vaultName = getInventoryName(inventoryConfig.vaultSide)
-	local outputName = getInventoryName(inventoryConfig.outputSide)
+	local vaultInventory = getInventory(inventoryConfig.vaultPeripheral)
+	local outputInventory = getInventory(inventoryConfig.outputPeripheral)
+	local vaultName = getInventoryName(inventoryConfig.vaultPeripheral)
+	local outputName = getInventoryName(inventoryConfig.outputPeripheral)
 
 	if (vaultInventory == nil or outputInventory == nil or vaultName == nil or outputName == nil) then
 		return false, t("error_missing_inventory")
