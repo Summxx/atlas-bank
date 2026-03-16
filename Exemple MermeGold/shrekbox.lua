@@ -980,7 +980,9 @@ function shrekbox.new(win)
     local t0 = os.epoch(epoch_unit)
     local function _render()
         profiler.end_region("user", true)
-        win.setVisible(false)
+        if win.setVisible then
+            win.setVisible(false)
+        end
         win.setCursorPos(1, 1)
         ---@diagnostic disable-next-line: param-type-mismatch
         local t1 = os.epoch(epoch_unit)
@@ -1007,7 +1009,9 @@ function shrekbox.new(win)
         render_blit(win, rblit, "a")
         profiler.end_region("blit!")
         profiler.end_region("shrekbox")
-        win.setVisible(true)
+        if win.setVisible then
+            win.setVisible(true)
+        end
         profiler.start_region("user")
     end
 
