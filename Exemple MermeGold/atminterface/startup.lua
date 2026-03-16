@@ -6,23 +6,17 @@ local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
 
-local function isPlayerDetector(side)
-	local pType = peripheral.getType(side)
-	return pType == "playerDetector" or pType == "player_detector"
-end
-
-local function isChatBox(side)
-	local pType = peripheral.getType(side)
-	return pType == "chatBox" or pType == "chat_box"
+local function hasMethod(object, methodName)
+	return object ~= nil and type(object[methodName]) == "function"
 end
 
 if (monitor == nil) then
 	error("Un monitor est requis pour utiliser le kiosque Atlas Bank.")
 end
-if (chatBox == nil or not isChatBox("left")) then
+if (chatBox == nil or not hasMethod(chatBox, "sendMessageToPlayer")) then
 	error("Une Chat Box Advanced Peripherals doit etre placee a gauche de l'ordinateur.")
 end
-if (playerDetector == nil or not isPlayerDetector("right")) then
+if (playerDetector == nil or not hasMethod(playerDetector, "getPlayersInRange")) then
 	error("Un Player Detector Advanced Peripherals doit etre place a droite de l'ordinateur.")
 end
 
