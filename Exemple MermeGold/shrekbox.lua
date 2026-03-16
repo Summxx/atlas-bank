@@ -980,7 +980,7 @@ function shrekbox.new(win)
     local t0 = os.epoch(epoch_unit)
     local function _render()
         profiler.end_region("user", true)
-        if win.setVisible then
+        if type(win.setVisible) == "function" then
             win.setVisible(false)
         end
         win.setCursorPos(1, 1)
@@ -1009,7 +1009,7 @@ function shrekbox.new(win)
         render_blit(win, rblit, "a")
         profiler.end_region("blit!")
         profiler.end_region("shrekbox")
-        if win.setVisible then
+        if type(win.setVisible) == "function" then
             win.setVisible(true)
         end
         profiler.start_region("user")
