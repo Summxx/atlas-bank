@@ -2,6 +2,8 @@
 
 os.loadAPI("bankapi.lua")
 
+local shrekbox = require("shrekbox")
+
 local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
@@ -38,6 +40,9 @@ monitor.setTextScale(0.5)
 
 local monitorSide = peripheral.getName(monitor)
 local width, height = monitor.getSize()
+local box = shrekbox.new(monitor)
+local pixelLayer = box.add_pixel_layer(5, "pixels")
+local textLayer = box.add_text_layer(10, "text")
 local serverData = bankapi.getServerData()
 local lang = serverData.lang or "fr"
 
@@ -179,28 +184,22 @@ local state = {
 }
 
 local function clear()
-	monitor.setBackgroundColor(theme.bg)
-	monitor.setTextColor(theme.text)
-	monitor.clear()
-	monitor.setCursorPos(1, 1)
+	box.fill(theme.bg)
+	pixelLayer.clear()
+	textLayer.clear()
 end
 
 local function fill(x, y, w, h, bg)
 	if (w <= 0 or h <= 0) then
 		return
 	end
-	monitor.setBackgroundColor(bg)
 	for row = y, y + h - 1 do
-		monitor.setCursorPos(x, row)
-		monitor.write(string.rep(" ", w))
+		textLayer.text(x, row, string.rep(" ", w), bg, bg)
 	end
 end
 
 local function writeAt(x, y, text, fg, bg)
-	monitor.setCursorPos(x, y)
-	monitor.setTextColor(fg or theme.text)
-	monitor.setBackgroundColor(bg or theme.bg)
-	monitor.write(text)
+	textLayer.text(x, y, text, fg or theme.text, bg)
 end
 
 local function centerText(y, text, fg, bg)
@@ -225,28 +224,65 @@ local function addButton(id, x, y, w, h)
 	}
 end
 
+local function fillRoundedRect(x, y, w, h, color, radius)
+	if (w <= 0 or h <= 0) then
+		return
+	end
+	radius = math.max(1, radius or 3)
+	local px1 = (x - 1) * 2 + 1
+	local py1 = (y - 1) * 3 + 1
+	local px2 = (x + w - 1) * 2
+	local py2 = (y + h - 1) * 3
+	local pr = math.max(1, radius)
+
+	for py = py1, py2 do
+		for px = px1, px2 do
+			local dx = 0
+			local dy = 0
+			local left = px1 + pr
+			local right = px2 - pr
+			local top = py1 + pr
+			local bottom = py2 - pr
+
+			if (px < left) then
+				dx = left - px
+			elseif (px > right) then
+				dx = px - right
+			end
+
+			if (py < top) then
+				dy = top - py
+			elseif (py > bottom) then
+				dy = py - bottom
+			end
+
+			if (dx == 0 or dy == 0 or (dx * dx + dy * dy) <= (pr * pr)) then
+				pixelLayer.pixel(px, py, color)
+			end
+		end
+	end
+end
+
 local function roundedButton(id, x, y, w, label, bg, fg)
 	w = math.max(w, #label + 4)
-	fill(x + 1, y, w - 2, 1, bg)
-	fill(x, y + 1, w, 1, bg)
-	fill(x + 1, y + 2, w - 2, 1, bg)
-	writeAt(x + math.floor((w - #label) / 2), y + 1, label, fg, bg)
+	fillRoundedRect(x, y, w, 3, bg, 4)
+	writeAt(x + math.floor((w - #label) / 2), y + 1, label, fg, nil)
 	addButton(id, x, y, w, 3)
 	return w
 end
 
 local function flatPanel(x, y, w, h, title)
-	fill(x, y, w, h, theme.card)
-	fill(x, y, w, 1, theme.border)
+	fillRoundedRect(x, y, w, h, theme.card, 5)
+	fillRoundedRect(x, y, w, 2, theme.border, 5)
 	if (title ~= nil and title ~= "") then
-		writeAt(x + 2, y, title, theme.cardDark, theme.border)
+		writeAt(x + 2, y, title, theme.cardDark, nil)
 	end
 end
 
 local function statusChip(x, y, text, bg, fg)
 	local widthChip = #text + 4
-	fill(x, y, widthChip, 1, bg)
-	writeAt(x + 2, y, text, fg, bg)
+	fillRoundedRect(x, y, widthChip, 1, bg, 2)
+	writeAt(x + 2, y, text, fg, nil)
 	return widthChip
 end
 
@@ -386,6 +422,37 @@ local function drawHeader()
 	fill(1, 2, width, 1, theme.muted)
 	local subtitle = state.currentPlayer and (t("player") .. ": " .. state.currentPlayer) or t("no_player")
 	centerText(2, trimText(subtitle, width - 4), theme.sub, theme.muted)
+end
+
+local function drawMainShell(activePrimary, activeSecondary)
+	local railX = 4
+	local railY = 5
+	local railW = math.max(18, math.floor(width * 0.24))
+	local buttonW = railW - 2
+	local contentX = railX + railW + 2
+	local contentY = 4
+	local contentW = width - contentX - 3
+	local contentH = height - 8
+
+	roundedButton(activePrimary == "account" and "account" or "register", railX + 1, railY + 3, buttonW, state.account and t("my_account") or t("create_account"), theme.success, theme.successText)
+	roundedButton("market", railX + 1, railY + 7, buttonW, t("market"), theme.primary, theme.primaryText)
+	roundedButton("help", railX + 1, railY + 11, buttonW, t("help"), theme.warning, theme.warningText)
+	roundedButton("sleep", width - 16, height - 4, 13, t("sleep"), theme.danger, theme.dangerText)
+
+	local borderColor = activeSecondary or theme.border
+	flatPanel(contentX, contentY, contentW, contentH, serverData.bankName or "Atlas Bank")
+	fill(contentX, contentY + 1, contentW, 1, borderColor)
+
+	return {
+		railX = railX,
+		railY = railY,
+		railW = railW,
+		buttonW = buttonW,
+		contentX = contentX,
+		contentY = contentY,
+		contentW = contentW,
+		contentH = contentH
+	}
 end
 
 local function drawSleepPage()
@@ -569,6 +636,7 @@ local function redraw()
 	else
 		drawHomePage()
 	end
+	box.render()
 end
 
 local function createAccount()

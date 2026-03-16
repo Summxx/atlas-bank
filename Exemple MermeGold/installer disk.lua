@@ -4,6 +4,7 @@ local githubBaseUrl = "https://raw.githubusercontent.com/Summxx/atlas-bank/main/
 
 local files = {
 	bankapi = githubBaseUrl.."/bankapi.lua",
+	shrekbox = githubBaseUrl.."/shrekbox.lua",
 	bankserver = githubBaseUrl.."/bankserver/startup.lua",
 	adminterminal = githubBaseUrl.."/adminterminal/startup.lua",
 	atminterface = githubBaseUrl.."/atminterface/startup.lua"
@@ -86,6 +87,7 @@ end
 function installATMInterface()
 	print("Installation du terminal public Atlas Bank...")
 	downloadFile(files.bankapi, "bankapi.lua")
+	downloadFile(files.shrekbox, "shrekbox.lua")
 	downloadFile(files.atminterface, "startup.lua")
 	quit()
 end
