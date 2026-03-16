@@ -49,7 +49,7 @@ local lang = serverData.lang or "fr"
 
 local localization = {
 	fr = {
-		title = "ATM",
+		title = "ATLAS BANK",
 		balance = "Solde",
 		no_balance = "Aucun compte",
 		sleep_title = "ATLAS BANK",
@@ -98,7 +98,7 @@ local localization = {
 		currency = serverData.currencyLabel or "Credits"
 	},
 	en = {
-		title = "ATM",
+		title = "ATLAS BANK",
 		balance = "Balance",
 		no_balance = "No account",
 		sleep_title = "ATLAS BANK",
@@ -157,12 +157,15 @@ local theme = {
 	card = colors.gray,
 	cardDark = colors.black,
 	border = colors.lightGray,
+	header = colors.gray,
+	headerText = colors.white,
+	panelTop = colors.lightGray,
 	text = colors.white,
 	sub = colors.lightGray,
-	accent = colors.lightBlue,
-	success = colors.lime,
+	accent = colors.cyan,
+	success = colors.green,
 	successText = colors.black,
-	warning = colors.orange,
+	warning = colors.yellow,
 	warningText = colors.black,
 	primary = colors.blue,
 	primaryText = colors.white,
@@ -266,15 +269,15 @@ end
 
 local function roundedButton(id, x, y, w, label, bg, fg)
 	w = math.max(w, #label + 4)
-	fillRoundedRect(x, y, w, 3, bg, 4)
+	fillRoundedRect(x, y, w, 4, bg, 3)
 	writeAt(x + math.floor((w - #label) / 2), y + 1, label, fg, nil)
-	addButton(id, x, y, w, 3)
+	addButton(id, x, y, w, 4)
 	return w
 end
 
 local function flatPanel(x, y, w, h, title)
-	fillRoundedRect(x, y, w, h, theme.card, 5)
-	fillRoundedRect(x, y, w, 2, theme.border, 5)
+	fillRoundedRect(x, y, w, h, theme.card, 3)
+	fillRoundedRect(x, y, w, 2, theme.panelTop, 3)
 	if (title ~= nil and title ~= "") then
 		writeAt(x + 2, y, title, theme.cardDark, nil)
 	end
@@ -408,7 +411,7 @@ local function drawGraph(x, y, w, h, values)
 end
 
 local function drawHeader()
-	fill(1, 1, width, 1, theme.bg)
+	fill(1, 1, width, 2, theme.bg)
 	writeAt(3, 1, t("title"), theme.text, theme.bg)
 
 	local balanceText = t("no_balance")
@@ -420,24 +423,24 @@ local function drawHeader()
 	writeAt(balanceX, 1, balanceText, theme.text, theme.bg)
 	statusChip(balanceX + #balanceText + 1, 1, "$", theme.coin, theme.coinText)
 
-	fill(1, 2, width, 1, theme.muted)
+	fill(1, 2, width, 1, theme.header)
 	local subtitle = state.currentPlayer and (t("player") .. ": " .. state.currentPlayer) or t("no_player")
-	centerText(2, trimText(subtitle, width - 4), theme.sub, theme.muted)
+	centerText(2, trimText(subtitle, width - 4), theme.headerText, theme.header)
 end
 
 local function drawMainShell(activePrimary, activeSecondary)
 	local railX = 4
 	local railY = 5
-	local railW = math.max(18, math.floor(width * 0.24))
+	local railW = math.max(20, math.floor(width * 0.22))
 	local buttonW = railW - 2
 	local contentX = railX + railW + 2
 	local contentY = 4
 	local contentW = width - contentX - 3
 	local contentH = height - 8
 
-	roundedButton(activePrimary == "account" and "account" or "register", railX + 1, railY + 3, buttonW, state.account and t("my_account") or t("create_account"), theme.success, theme.successText)
+	roundedButton(activePrimary == "account" and "account" or "register", railX + 1, railY + 2, buttonW, state.account and t("my_account") or t("create_account"), theme.success, theme.successText)
 	roundedButton("market", railX + 1, railY + 7, buttonW, t("market"), theme.primary, theme.primaryText)
-	roundedButton("help", railX + 1, railY + 11, buttonW, t("help"), theme.warning, theme.warningText)
+	roundedButton("help", railX + 1, railY + 12, buttonW, t("help"), theme.warning, theme.warningText)
 	roundedButton("sleep", width - 16, height - 4, 13, t("sleep"), theme.danger, theme.dangerText)
 
 	local borderColor = activeSecondary or theme.border
@@ -475,36 +478,26 @@ local function drawHomePage()
 	state.buttons = {}
 	drawHeader()
 
-	local panelX = 4
-	local panelY = 4
-	local panelW = width - 6
-	flatPanel(panelX, panelY, panelW, 8, serverData.bankName or "Atlas Bank")
+	local shell = drawMainShell(state.account and "account" or "register", theme.panelTop)
+	local contentX = shell.contentX
+	local contentY = shell.contentY
+	local contentW = shell.contentW
 
+	local infoY = contentY + 3
 	if (state.currentPlayer ~= nil) then
-		writeAt(panelX + 2, panelY + 2, trimText(t("player") .. ": " .. state.currentPlayer, panelW - 4), theme.accent, theme.card)
+		writeAt(contentX + 3, infoY, trimText(t("player") .. ": " .. state.currentPlayer, contentW - 6), theme.accent, theme.card)
 	else
-		writeAt(panelX + 2, panelY + 2, trimText(t("no_player"), panelW - 4), theme.warning, theme.card)
+		writeAt(contentX + 3, infoY, trimText(t("no_player"), contentW - 6), theme.warning, theme.card)
 	end
 
 	if (state.account ~= nil) then
-		writeAt(panelX + 2, panelY + 4, trimText(t("account_ready"), panelW - 4), theme.text, theme.card)
-		writeAt(panelX + 2, panelY + 5, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), panelW - 4), theme.sub, theme.card)
+		writeAt(contentX + 3, infoY + 3, trimText(t("account_ready"), contentW - 6), theme.text, theme.card)
+		writeAt(contentX + 3, infoY + 5, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), contentW - 6), theme.sub, theme.card)
+		writeAt(contentX + 3, infoY + 8, trimText(t("assist"), contentW - 6), theme.sub, theme.card)
 	else
-		writeAt(panelX + 2, panelY + 4, trimText(t("no_account"), panelW - 4), theme.text, theme.card)
-		writeAt(panelX + 2, panelY + 5, trimText(t("assist"), panelW - 4), theme.sub, theme.card)
+		writeAt(contentX + 3, infoY + 3, trimText(t("no_account"), contentW - 6), theme.text, theme.card)
+		writeAt(contentX + 3, infoY + 5, trimText(t("assist"), contentW - 6), theme.sub, theme.card)
 	end
-
-	local buttonX = 4
-	local buttonY = 14
-	local buttonWidth = math.min(24, width - 8)
-	if (state.account ~= nil) then
-		roundedButton("account", buttonX, buttonY, buttonWidth, t("my_account"), theme.success, theme.successText)
-	else
-		roundedButton("register", buttonX, buttonY, buttonWidth, t("create_account"), theme.success, theme.successText)
-	end
-	roundedButton("market", buttonX, buttonY + 4, buttonWidth, t("market"), theme.primary, theme.primaryText)
-	roundedButton("help", buttonX, buttonY + 8, buttonWidth, t("help"), theme.warning, theme.warningText)
-	roundedButton("sleep", width - 16, height - 4, 13, t("sleep"), theme.danger, theme.dangerText)
 end
 
 local function drawRegisterPage()
@@ -512,20 +505,18 @@ local function drawRegisterPage()
 	state.buttons = {}
 	drawHeader()
 
-	local panelX = 4
-	local panelY = 4
-	local panelW = width - 6
-	flatPanel(panelX, panelY, panelW, 10, t("register_title"))
-	writeAt(panelX + 2, panelY + 2, trimText(t("register_desc"), panelW - 4), theme.text, theme.card)
+	local shell = drawMainShell("register", theme.success)
+	local panelX = shell.contentX
+	local panelY = shell.contentY
+	local panelW = shell.contentW
+	writeAt(panelX + 3, panelY + 3, trimText(t("register_title"), panelW - 6), theme.text, theme.card)
+	writeAt(panelX + 3, panelY + 5, trimText(t("register_desc"), panelW - 6), theme.sub, theme.card)
 	if (state.currentPlayer ~= nil) then
-		writeAt(panelX + 2, panelY + 5, trimText(t("player") .. ": " .. state.currentPlayer, panelW - 4), theme.accent, theme.card)
-		roundedButton("register_confirm", panelX + 2, panelY + 7, panelW - 4, t("register_button"), theme.success, theme.successText)
+		writeAt(panelX + 3, panelY + 8, trimText(t("player") .. ": " .. state.currentPlayer, panelW - 6), theme.accent, theme.card)
+		roundedButton("register_confirm", panelX + 3, panelY + 12, panelW - 6, t("register_button"), theme.success, theme.successText)
 	else
-		writeAt(panelX + 2, panelY + 5, trimText(t("register_need_player"), panelW - 4), theme.warning, theme.card)
+		writeAt(panelX + 3, panelY + 8, trimText(t("register_need_player"), panelW - 6), theme.warning, theme.card)
 	end
-
-	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
-	roundedButton("help", width - 16, height - 4, 13, t("help"), theme.warning, theme.warningText)
 end
 
 local function drawAccountPage()
@@ -533,22 +524,19 @@ local function drawAccountPage()
 	state.buttons = {}
 	drawHeader()
 
-	local panelX = 4
-	local panelY = 4
-	local panelW = width - 6
-	flatPanel(panelX, panelY, panelW, 11, t("account_title"))
+	local shell = drawMainShell("account", theme.success)
+	local panelX = shell.contentX
+	local panelY = shell.contentY
+	local panelW = shell.contentW
+	writeAt(panelX + 3, panelY + 3, trimText(t("account_title"), panelW - 6), theme.text, theme.card)
 	if (state.account ~= nil) then
-		writeAt(panelX + 2, panelY + 2, trimText(t("player") .. ": " .. (state.account.playerName or state.currentPlayer or "?"), panelW - 4), theme.text, theme.card)
-		writeAt(panelX + 2, panelY + 4, trimText(t("key") .. ": " .. tostring(state.accountKey), panelW - 4), theme.sub, theme.card)
-		writeAt(panelX + 2, panelY + 6, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), panelW - 4), theme.accent, theme.card)
-		writeAt(panelX + 2, panelY + 8, trimText(t("status") .. ": " .. t("status_online"), panelW - 4), theme.sub, theme.card)
+		writeAt(panelX + 3, panelY + 6, trimText(t("player") .. ": " .. (state.account.playerName or state.currentPlayer or "?"), panelW - 6), theme.text, theme.card)
+		writeAt(panelX + 3, panelY + 8, trimText(t("key") .. ": " .. tostring(state.accountKey), panelW - 6), theme.sub, theme.card)
+		writeAt(panelX + 3, panelY + 11, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), panelW - 6), theme.accent, theme.card)
+		writeAt(panelX + 3, panelY + 14, trimText(t("status") .. ": " .. t("status_online"), panelW - 6), theme.sub, theme.card)
 	else
-		writeAt(panelX + 2, panelY + 4, trimText(t("no_account"), panelW - 4), theme.warning, theme.card)
+		writeAt(panelX + 3, panelY + 8, trimText(t("no_account"), panelW - 6), theme.warning, theme.card)
 	end
-
-	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
-	roundedButton("market", 19, height - 4, 14, t("market"), theme.success, theme.successText)
-	roundedButton("help", width - 16, height - 4, 13, t("help"), theme.warning, theme.warningText)
 end
 
 local function drawMarketPage()
@@ -556,31 +544,33 @@ local function drawMarketPage()
 	state.buttons = {}
 	drawHeader()
 
-	local listX = 3
-	local listY = 4
-	local listW = math.max(20, math.floor(width * 0.33))
-	local listH = height - 8
+	local shell = drawMainShell("market", theme.primary)
+	local listX = shell.contentX + 2
+	local listY = shell.contentY + 3
+	local listW = math.max(18, math.floor(shell.contentW * 0.34))
+	local listH = shell.contentH - 5
 	flatPanel(listX, listY, listW, listH, t("market_title"))
 
 	local quote = selectedQuote()
 	local detailX = listX + listW + 2
-	local detailW = width - detailX - 2
+	local detailW = shell.contentX + shell.contentW - detailX - 1
 	flatPanel(detailX, listY, detailW, listH, quote and quote.name or t("select_asset"))
 
 	if (#state.quotes == 0) then
 		writeAt(listX + 2, listY + 3, trimText(t("market_empty"), listW - 4), theme.sub, theme.card)
 	else
-		local maxVisible = math.max(3, math.floor((listH - 4) / 3))
+		local maxVisible = math.max(3, math.floor((listH - 5) / 4))
 		for index, assetQuote in ipairs(state.quotes) do
 			if (index > maxVisible) then
 				break
 			end
-			local buttonBg = (assetQuote.id == state.selectedAsset) and theme.header or theme.cardDark
+			local buttonBg = (assetQuote.id == state.selectedAsset) and theme.panelTop or theme.cardDark
 			local buttonFg = (assetQuote.id == state.selectedAsset) and theme.cardDark or theme.text
-			local label = trimText(assetQuote.name, listW - 6)
-			fill(listX + 2, listY + 2 + ((index - 1) * 3), listW - 4, 2, buttonBg)
-			writeAt(listX + 3, listY + 3 + ((index - 1) * 3), label, buttonFg, buttonBg)
-			addButton("asset:" .. assetQuote.id, listX + 2, listY + 2 + ((index - 1) * 3), listW - 4, 2)
+			local rowY = listY + 2 + ((index - 1) * 4)
+			local label = trimText(assetQuote.name, listW - 8)
+			fillRoundedRect(listX + 2, rowY, listW - 4, 3, buttonBg, 2)
+			writeAt(listX + 4, rowY + 1, label, buttonFg, nil)
+			addButton("asset:" .. assetQuote.id, listX + 2, rowY, listW - 4, 3)
 		end
 	end
 
@@ -594,9 +584,6 @@ local function drawMarketPage()
 	else
 		writeAt(detailX + 2, listY + 4, trimText(t("select_asset"), detailW - 4), theme.sub, theme.card)
 	end
-
-	roundedButton("home", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
-	roundedButton("help", width - 16, height - 4, 13, t("help"), theme.warning, theme.warningText)
 end
 
 local function drawHelpPage()
@@ -604,11 +591,11 @@ local function drawHelpPage()
 	state.buttons = {}
 	drawHeader()
 
-	local panelX = 4
-	local panelY = 4
-	local panelW = width - 6
-	local panelH = height - 8
-	flatPanel(panelX, panelY, panelW, panelH, t("help_title"))
+	local shell = drawMainShell("help", theme.warning)
+	local panelX = shell.contentX
+	local panelY = shell.contentY
+	local panelW = shell.contentW
+	local panelH = shell.contentH
 
 	local y = panelY + 3
 	for _, lineText in ipairs(localization[lang].help_lines) do
