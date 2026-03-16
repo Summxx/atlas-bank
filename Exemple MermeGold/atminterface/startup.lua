@@ -3,17 +3,27 @@
 os.loadAPI("bankapi.lua")
 
 local monitor = peripheral.find("monitor")
-local playerDetector = peripheral.wrap("left")
-local chatBox = peripheral.wrap("right")
+local chatBox = peripheral.wrap("left")
+local playerDetector = peripheral.wrap("right")
+
+local function isPlayerDetector(side)
+	local pType = peripheral.getType(side)
+	return pType == "playerDetector" or pType == "player_detector"
+end
+
+local function isChatBox(side)
+	local pType = peripheral.getType(side)
+	return pType == "chatBox" or pType == "chat_box"
+end
 
 if (monitor == nil) then
 	error("Un monitor est requis pour utiliser le kiosque Atlas Bank.")
 end
-if (playerDetector == nil or peripheral.getType("left") ~= "playerDetector") then
-	error("Un Player Detector Advanced Peripherals doit etre place a gauche de l'ordinateur.")
+if (chatBox == nil or not isChatBox("left")) then
+	error("Une Chat Box Advanced Peripherals doit etre placee a gauche de l'ordinateur.")
 end
-if (chatBox == nil or peripheral.getType("right") ~= "chatBox") then
-	error("Une Chat Box Advanced Peripherals doit etre placee a droite de l'ordinateur.")
+if (playerDetector == nil or not isPlayerDetector("right")) then
+	error("Un Player Detector Advanced Peripherals doit etre place a droite de l'ordinateur.")
 end
 
 local modem = peripheral.find("modem")
@@ -40,7 +50,7 @@ local localization = {
 	fr = {
 		sleep_title = "ATLAS BANK",
 		sleep_hint = "Clic droit pour utiliser ou sortir de veille",
-		detect = "Approchez-vous du detecteur joueur a gauche",
+		detect = "Approchez-vous du detecteur joueur a droite",
 		no_account = "Aucun compte Atlas Bank detecte",
 		create_account = "Creer mon compte",
 		my_account = "Mon compte",
@@ -49,7 +59,7 @@ local localization = {
 		sleep = "Veille",
 		back = "Retour",
 		register_title = "Creation de compte",
-		register_desc = "Le kiosque utilise le player detector a gauche pour reconnaitre automatiquement le joueur proche.",
+		register_desc = "Le kiosque utilise le player detector a droite pour reconnaitre automatiquement le joueur proche.",
 		register_ready = "Joueur detecte",
 		register_button = "Ouvrir mon compte",
 		register_success = "Compte cree avec succes",
@@ -64,7 +74,7 @@ local localization = {
 		status_online = "Connecte au kiosque",
 		status_idle = "En attente",
 		refresh = "Actualiser",
-		account_missing = "Aucun joueur unique detecte a gauche",
+		account_missing = "Aucun joueur unique detecte a droite",
 		market_title = "Cours du marche",
 		market_live = "Flux en direct",
 		market_empty = "Aucun actif charge",
@@ -75,7 +85,7 @@ local localization = {
 		detail = "Detail actif",
 		help_title = "Guide du kiosque",
 		help_lines = {
-			"1. Placez-vous a gauche du kiosque pour etre detecte.",
+			"1. Placez-vous a droite du kiosque pour etre detecte.",
 			"2. Si vous n'avez pas de compte, utilisez le bouton de creation.",
 			"3. Le kiosque affiche ensuite votre solde et les cours du marche.",
 			"4. Utilisez la page Marche pour consulter les actifs et leur evolution.",
@@ -92,7 +102,7 @@ local localization = {
 	en = {
 		sleep_title = "ATLAS BANK",
 		sleep_hint = "Right click to use or leave standby",
-		detect = "Stand near the player detector on the left",
+		detect = "Stand near the player detector on the right",
 		no_account = "No Atlas Bank account detected",
 		create_account = "Create my account",
 		my_account = "My account",
@@ -101,7 +111,7 @@ local localization = {
 		sleep = "Sleep",
 		back = "Back",
 		register_title = "Account creation",
-		register_desc = "The kiosk uses the player detector on the left to identify the nearby player automatically.",
+		register_desc = "The kiosk uses the player detector on the right to identify the nearby player automatically.",
 		register_ready = "Detected player",
 		register_button = "Open my account",
 		register_success = "Account created successfully",
@@ -116,7 +126,7 @@ local localization = {
 		status_online = "Connected to kiosk",
 		status_idle = "Idle",
 		refresh = "Refresh",
-		account_missing = "No single player detected on the left",
+		account_missing = "No single player detected on the right",
 		market_title = "Market rates",
 		market_live = "Live feed",
 		market_empty = "No assets loaded",
@@ -127,7 +137,7 @@ local localization = {
 		detail = "Asset detail",
 		help_title = "Kiosk guide",
 		help_lines = {
-			"1. Stand on the left side of the kiosk to be detected.",
+			"1. Stand on the right side of the kiosk to be detected.",
 			"2. If you do not have an account yet, use account creation.",
 			"3. The kiosk then shows your balance and the market rates.",
 			"4. Use the Market page to inspect assets and their live movement.",
