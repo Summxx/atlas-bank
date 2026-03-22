@@ -412,14 +412,53 @@ local function normalizePlayerEntry(entry)
 	return entry
 end
 
+local function collectDetectedPlayers(result)
+	if (type(result) ~= "table") then
+		return {}
+	end
+
+	local players = {}
+	local seen = {}
+
+	local function addPlayer(value, fallbackKey)
+		local normalized = normalizePlayerEntry(value)
+		if (normalized == nil and type(fallbackKey) == "string") then
+			normalized = fallbackKey
+		end
+		if (normalized ~= nil) then
+			normalized = tostring(normalized)
+			local lowered = string.lower(normalized)
+			if (seen[lowered] ~= true) then
+				seen[lowered] = true
+				players[#players + 1] = normalized
+			end
+		end
+	end
+
+	for key, value in pairs(result) do
+		addPlayer(value, key)
+	end
+
+	table.sort(players, function(a, b)
+		return string.lower(a) < string.lower(b)
+	end)
+
+	return players
+end
+
 local function detectPlayer()
 	local ok, result = pcall(function()
-		return playerDetector.getPlayersInRange(4)
+		return playerDetector.getPlayersInRange(5)
 	end)
-	if (not ok or type(result) ~= "table" or #result ~= 1) then
+	if (not ok) then
 		return nil
 	end
-	return normalizePlayerEntry(result[1])
+
+	local players = collectDetectedPlayers(result)
+	if (#players == 0) then
+		return nil
+	end
+	return players[1]
 end
 
 local function sendPlayerMessage(playerName, text)
