@@ -12,7 +12,7 @@ local playerDetector = peripheral.wrap("right")
 -- `vaultPeripheral` doit pointer vers le coffre central de la banque (ex: Netherite Chest Sophisticated Storage).
 -- `bankChestDirection` est la direction du coffre par rapport a l'inventory manager.
 local inventoryConfig = {
-	inventoryManagerPeripheral = "top",
+	inventoryManagerPeripheral = "inventoryManager",
 	vaultPeripheral = "back",
 	bankChestDirection = "up"
 }
@@ -484,6 +484,11 @@ end
 
 local function getInventoryManager()
 	local manager = select(1, resolvePeripheral(inventoryConfig.inventoryManagerPeripheral, "getItems"))
+	if (manager == nil) then
+		manager = peripheral.find("inventoryManager", function(name, wrapped)
+			return hasMethod(wrapped, "getItems") and hasMethod(wrapped, "addItemToPlayer") and hasMethod(wrapped, "removeItemFromPlayer")
+		end)
+	end
 	if (manager == nil or not hasMethod(manager, "addItemToPlayer") or not hasMethod(manager, "removeItemFromPlayer")) then
 		return nil
 	end
@@ -1142,7 +1147,7 @@ local function drawMarketPage()
 		writeAt(detailX + 2, listY + 9, trimText(t("withdraw_max") .. ": " .. tostring(quote.maxWithdraw), detailW - 4), theme.sub, theme.card)
 		writeAt(detailX + 2, listY + 12, t("graph"), theme.text, theme.card)
 		drawGraph(detailX + 2, listY + 14, detailW - 4, math.max(5, listH - 17), state.history[quote.id] or {})
-		if (state.accountKey ~= nil) then
+		if (state.accountKey ~= nil and state.quickMarketAction == nil) then
 			local buttonWidth = math.max(14, math.floor((detailW - 8) / 2))
 			if (quote.allowDeposit) then
 				roundedButton("deposit_asset", detailX + 2, listY + listH - 8, buttonWidth, t("deposit_asset"), theme.success, theme.successText)
