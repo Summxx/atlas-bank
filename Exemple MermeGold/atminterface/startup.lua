@@ -485,9 +485,13 @@ end
 local function getInventoryManager()
 	local manager = select(1, resolvePeripheral(inventoryConfig.inventoryManagerPeripheral, "getItems"))
 	if (manager == nil) then
-		manager = peripheral.find("inventoryManager", function(name, wrapped)
-			return hasMethod(wrapped, "getItems") and hasMethod(wrapped, "addItemToPlayer") and hasMethod(wrapped, "removeItemFromPlayer")
-		end)
+		for _, name in ipairs(peripheral.getNames()) do
+			local wrapped = peripheral.wrap(name)
+			if (wrapped ~= nil and hasMethod(wrapped, "getItems") and hasMethod(wrapped, "addItemToPlayer") and hasMethod(wrapped, "removeItemFromPlayer")) then
+				manager = wrapped
+				break
+			end
+		end
 	end
 	if (manager == nil or not hasMethod(manager, "addItemToPlayer") or not hasMethod(manager, "removeItemFromPlayer")) then
 		return nil
