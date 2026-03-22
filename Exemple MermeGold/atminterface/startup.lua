@@ -285,6 +285,7 @@ local state = {
 	clientDirectory = nil,
 	transferRecipientKey = nil,
 	transferRecipientOffset = 1,
+	quickMarketAction = nil,
 	selectedAsset = nil,
 	quoteOffset = 1,
 	buttons = {},
@@ -969,6 +970,8 @@ local function drawAccountPage()
 		local buttonWidth = math.max(14, math.floor((panelW - 10) / 2))
 		roundedButton("account_history", panelX + 3, panelY + 18, buttonWidth, t("account_history"), theme.primary, theme.primaryText)
 		roundedButton("account_transfer", panelX + 5 + buttonWidth, panelY + 18, buttonWidth, t("transfer"), theme.warning, theme.warningText)
+		roundedButton("account_deposit", panelX + 3, panelY + 23, buttonWidth, t("deposit_asset"), theme.success, theme.successText)
+		roundedButton("account_withdraw", panelX + 5 + buttonWidth, panelY + 23, buttonWidth, t("withdraw_asset"), theme.primary, theme.primaryText)
 	else
 		writeAt(panelX + 3, panelY + 8, trimText(t("no_account"), panelW - 6), theme.warning, theme.card)
 	end
@@ -1088,6 +1091,10 @@ local function drawMarketPage()
 	if (#state.quotes == 0) then
 		writeAt(listX + 2, listY + 3, trimText(t("market_empty"), listW - 4), theme.sub, theme.card)
 	else
+		if (state.quickMarketAction ~= nil and state.accountKey ~= nil) then
+			local actionText = state.quickMarketAction == "deposit" and t("deposit_asset") or t("withdraw_asset")
+			writeAt(detailX + 2, listY + 3, trimText(actionText .. " | " .. t("select_asset"), detailW - 4), theme.warning, theme.card)
+		end
 		local maxVisible = math.max(3, math.floor((listH - 5) / 4))
 		ensureSelectedQuoteVisible(maxVisible)
 		local lastVisible = math.min(#state.quotes, state.quoteOffset + maxVisible - 1)
@@ -1401,12 +1408,16 @@ local function handleAction(action)
 	end
 	resetFlashMessage()
 	if (action == "wake") then
+		state.quickMarketAction = nil
 		state.page = "home"
 	elseif (action == "sleep") then
+		state.quickMarketAction = nil
 		state.page = "sleep"
 	elseif (action == "home") then
+		state.quickMarketAction = nil
 		state.page = "home"
 	elseif (action == "register") then
+		state.quickMarketAction = nil
 		state.page = "register"
 	elseif (action == "register_confirm") then
 		createAccount()
@@ -1414,15 +1425,29 @@ local function handleAction(action)
 	elseif (action == "account") then
 		state.pendingOperation = nil
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.page = "account"
 	elseif (action == "account_transfer") then
 		refreshPlayerAndAccount()
 		refreshClientDirectory()
 		state.pendingOperation = nil
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.transferRecipientKey = nil
 		state.transferRecipientOffset = 1
 		state.page = "transfer_recipient"
+	elseif (action == "account_deposit") then
+		refreshQuotes()
+		state.pendingOperation = nil
+		state.pendingQuantity = "1"
+		state.quickMarketAction = "deposit"
+		state.page = "market"
+	elseif (action == "account_withdraw") then
+		refreshQuotes()
+		state.pendingOperation = nil
+		state.pendingQuantity = "1"
+		state.quickMarketAction = "withdraw"
+		state.page = "market"
 	elseif (action == "account_history") then
 		refreshClientDirectory()
 		refreshAccountLog()
@@ -1435,6 +1460,7 @@ local function handleAction(action)
 	elseif (action == "market") then
 		state.pendingOperation = nil
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.page = "market"
 	elseif (action == "transfer_refresh") then
 		refreshPlayerAndAccount()
@@ -1443,20 +1469,31 @@ local function handleAction(action)
 	elseif (action == "transfer_recipient") then
 		state.pendingOperation = nil
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.page = "transfer_recipient"
 	elseif (action == "help") then
+		state.quickMarketAction = nil
 		state.page = "help"
 	elseif (action == "deposit_asset") then
 		state.pendingOperation = "deposit"
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.page = "quantity"
 	elseif (action == "withdraw_asset") then
 		state.pendingOperation = "withdraw"
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.page = "quantity"
 	elseif (string.sub(action, 1, 6) == "asset:") then
 		state.selectedAsset = string.sub(action, 7)
-		state.page = "market"
+		if (state.quickMarketAction ~= nil and state.accountKey ~= nil) then
+			state.pendingOperation = state.quickMarketAction
+			state.pendingQuantity = "1"
+			state.quickMarketAction = nil
+			state.page = "quantity"
+		else
+			state.page = "market"
+		end
 	elseif (action == "asset_nav_up") then
 		state.quoteOffset = math.max(1, (state.quoteOffset or 1) - 1)
 		state.page = "market"
@@ -1479,6 +1516,7 @@ local function handleAction(action)
 		state.transferRecipientKey = string.sub(action, 11)
 		state.pendingOperation = "transfer"
 		state.pendingQuantity = "1"
+		state.quickMarketAction = nil
 		state.page = "quantity"
 	elseif (string.sub(action, 1, 4) == "qty:") then
 		local value = string.sub(action, 5)
