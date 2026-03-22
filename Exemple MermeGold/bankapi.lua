@@ -346,13 +346,16 @@ function withdraw(key, amount)
 	return message.success, message.response
 end
  
-function newAccount(name, balance, color)
+function newAccount(name, balance, color, playerName)
 	local message = {
 		action = "new",
 		name = name,
 		balance = balance,
 		color = color
 	}
+	if (playerName ~= nil and playerName ~= "") then
+		message.playerName = playerName
+	end
 	rednet.send(bankServerID, message, "mermegold")
 	local sender, message = rednet.receive("mermegold")
 	return message.success, message.response

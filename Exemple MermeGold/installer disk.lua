@@ -7,14 +7,18 @@ local files = {
 	shrekbox = githubBaseUrl.."/shrekbox.lua",
 	bankserver = githubBaseUrl.."/bankserver/startup.lua",
 	adminterminal = githubBaseUrl.."/adminterminal/startup.lua",
-	atminterface = githubBaseUrl.."/atminterface/startup.lua"
+	atminterface = githubBaseUrl.."/atminterface/startup.lua",
+	storeclerk = githubBaseUrl.."/storeclerk/startup.lua"
 }
 
 local function downloadFile(url, path)
 	if (fs.exists(path)) then
 		fs.delete(path)
 	end
-	shell.run("wget "..url.." "..path)
+	local success = shell.run("wget", url, path)
+	if (not success) then
+		error("Telechargement impossible: "..path)
+	end
 end
 
 function quit()
@@ -92,6 +96,13 @@ function installATMInterface()
 	quit()
 end
 
+function installStoreClerk()
+	print("Installation de la boutique Atlas Bank...")
+	downloadFile(files.bankapi, "bankapi.lua")
+	downloadFile(files.storeclerk, "startup.lua")
+	quit()
+end
+
 function showHelp()
 	term.clear()
 	term.setCursorPos(1,1)
@@ -101,6 +112,7 @@ function showHelp()
 			"Serveur bancaire",
 			"Terminal admin",
 			"Terminal public",
+			"Boutique / Store Clerk",
 			"[Retour]"
 		})
 		term.clear()
@@ -124,12 +136,23 @@ function showHelp()
 		elseif (selectedOption == 3) then
 			print("=== Terminal public ===")
 			print("")
-			print("Permet aux joueurs de consulter leur solde, faire des virements")
-			print("et consulter les cours du marche avec leur carte ou telephone.")
+			print("Permet aux joueurs de consulter leur solde,")
+			print("ouvrir leur compte et utiliser le marche d'actifs.")
+			print("Necessite un advanced monitor, un modem,")
+			print("une chat box et un player detector.")
 			print("")
 			print("Appuyez sur une touche pour revenir...")
 			os.pullEvent("key")
 		elseif (selectedOption == 4) then
+			print("=== Boutique / Store Clerk ===")
+			print("")
+			print("Version caisse/boutique pour turtles marchandes.")
+			print("Permet d'encaisser les achats via Atlas Bank")
+			print("avec catalogue, carte bancaire et paiement automatique.")
+			print("")
+			print("Appuyez sur une touche pour revenir...")
+			os.pullEvent("key")
+		elseif (selectedOption == 5) then
 			mainMenu()
 			break
 		end
@@ -142,6 +165,7 @@ function mainMenu()
 		"Installer le serveur bancaire",
 		"Installer le terminal admin",
 		"Installer le terminal public",
+		"Installer la boutique",
 		"Annuler et ejecter"
 	})
 	if (selectedOption == 1) then
@@ -152,6 +176,8 @@ function mainMenu()
 		installAdminTerminal()
 	elseif (selectedOption == 4) then
 		installATMInterface()
+	elseif (selectedOption == 5) then
+		installStoreClerk()
 	else
 		quit()
 	end

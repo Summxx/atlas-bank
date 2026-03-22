@@ -80,6 +80,7 @@ local localization = {
 		buy_and_continue="Buy and continue",
 		buy_and_quit="Buy and exit",
 		cancel="Cancel",
+		purchase_failed="Payment refused",
 		thanks_come_again="Thank you! Come again!",
 		default_shop_name="Shop"
 	},
@@ -142,6 +143,7 @@ local localization = {
 		buy_and_continue="Comprar y seguir",
 		buy_and_quit="Comprar y salir",
 		cancel="Cancelar",
+		purchase_failed="Pago rechazado",
 		thanks_come_again="Gracias! Vuelva pronto!",
 		default_shop_name="Tienda"
 	},
@@ -204,6 +206,7 @@ local localization = {
 		buy_and_continue = "Kaufen und weitermachen",
 		buy_and_quit = "Kaufen und beenden",
 		cancel = "Abbrechen",
+		purchase_failed = "Zahlung abgelehnt",
 		thanks_come_again = "Danke! Komm bald wieder!",
 		default_shop_name = "Shop"
 	}
@@ -243,6 +246,7 @@ end
 local currentAccount = 0
  
 local function readDisk()
+	currentAccount = 0
 	if (fs.exists("disk")) then
 		local f = fs.open("disk/atlasbank.txt", "r")
 		if (f ~= nil) then
@@ -272,7 +276,7 @@ local function loadShopName()
 		f.close()
 	else
 		local f = fs.open("shopname.txt", "w")
-		f.writeLine("Tienda")
+		f.writeLine(localization[lang].default_shop_name)
 		f.close()
 	end
 end
@@ -391,7 +395,6 @@ local function buy(previousEstimatedPrice)
 	for i=1, 16 do
 		turtle.select(i)
 		local detail = turtle.getItemDetail(i)
-		turtle.drop()
 		if (detail ~= nil) then
 			local item = detail.name
 			if (catalog[item] ~= nil) then
@@ -430,14 +433,25 @@ local function buy(previousEstimatedPrice)
  
 	if (previousEstimatedPrice ~= totalPrice) then
 		bankapi.waitScreen(localization[lang].purchase_canceled)
-		while (turtle.suck()) do
-		end
 		bankapi.textScreen(localization[lang].foul_play)
 	else
-		bankapi.transaction(currentAccount, owner, totalPrice, totalReceitDescription)
+		local success, response = bankapi.transaction(currentAccount, owner, totalPrice, totalReceitDescription)
+		if (not success) then
+			bankapi.errorScreen(response or localization[lang].purchase_failed)
+			return false
+		end
+
+		for i=1, 16 do
+			turtle.select(i)
+			turtle.drop()
+		end
+
 		bankapi.successScreen({localization[lang].thanks_for_shopping_at, shopName.."!"})
 		bankapi.successScreen(localization[lang].items_ready)
+		return true
 	end
+
+	return false
 end
  
 local function logout()
@@ -983,7 +997,7 @@ while true do -- Second while to allow the use of breaks as continues
 											breaking = true
 											break
 										end
-										if (totalPrice > 0 and totalPrice < balance and total >= 0) then
+										if (totalPrice > 0 and totalPrice <= balance and total >= 0) then
 											if (bankapi.mouseInButton(buyButton, cx, cy)) then
 												buy(totalPrice)
 												break

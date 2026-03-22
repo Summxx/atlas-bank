@@ -8,10 +8,13 @@ local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
 -- Vous pouvez utiliser un cote ("top") ou un nom exact de peripherique.
+-- `inventoryManagerPeripheral` doit pointer vers un Inventory Manager Advanced Peripherals.
+-- `vaultPeripheral` doit pointer vers le coffre central de la banque (ex: Netherite Chest Sophisticated Storage).
+-- `bankChestDirection` est la direction du coffre par rapport a l'inventory manager.
 local inventoryConfig = {
-	depositPeripheral = "top",
+	inventoryManagerPeripheral = "top",
 	vaultPeripheral = "back",
-	outputPeripheral = "bottom"
+	bankChestDirection = "up"
 }
 
 local function hasMethod(object, methodName)
@@ -28,7 +31,8 @@ local function resolvePeripheral(reference, requiredMethod)
 	end
 
 	for _, name in ipairs(peripheral.getNames()) do
-		if (name == reference) then
+		local peripheralType = peripheral.getType(name)
+		if (name == reference or peripheralType == reference) then
 			local namedPeripheral = peripheral.wrap(name)
 			if (namedPeripheral ~= nil and (requiredMethod == nil or hasMethod(namedPeripheral, requiredMethod))) then
 				return namedPeripheral, name
@@ -102,6 +106,18 @@ local localization = {
 		register_chat_1 = "Votre compte Atlas Bank a ete cree. Cle : ",
 		register_chat_2 = " Revenez au terminal pour consulter votre solde.",
 		account_title = "Compte bancaire",
+		account_history = "Historique",
+		transfer = "Virement",
+		transfer_title = "Nouveau virement",
+		choose_recipient = "Choisissez un destinataire",
+		no_recipient = "Aucun autre compte disponible",
+		recipient = "Destinataire",
+		transfer_summary = "Virement vers",
+		transfer_description = "Virement ATM",
+		recent_activity = "Activite recente",
+		no_activity = "Aucune operation recente",
+		refresh = "Actualiser",
+		unknown_counterparty = "Compte externe",
 		key = "Cle",
 		status = "Statut",
 		status_online = "Connecte au terminal",
@@ -116,10 +132,15 @@ local localization = {
 		close = "Fermer",
 		operation_done = "Operation enregistree",
 		operation_error = "Operation refusee",
-		error_missing_inventory = "Inventaire ATM manquant",
-		error_missing_items = "Objets insuffisants dans le depot",
-		error_output_blocked = "Sortie ATM indisponible",
-		error_vault_blocked = "Reserve ATM indisponible",
+		error_missing_inventory = "Infrastructure ATM manquante",
+		error_missing_items = "Objets insuffisants dans l'inventaire du joueur",
+		error_output_blocked = "Depot joueur indisponible",
+		error_vault_blocked = "Reserve bancaire indisponible",
+		error_missing_manager = "Inventory Manager introuvable",
+		error_missing_bank_chest = "Coffre bancaire central introuvable",
+		error_inventory_link = "Aucune Memory Card liee a l'inventory manager",
+		error_inventory_owner = "La Memory Card ne correspond pas au joueur detecte",
+		error_player_inventory_full = "Inventaire joueur trop plein",
 		error_notenoughbalance = "Solde insuffisant",
 		error_asset_stock = "Reserve publique insuffisante",
 		error_partial_move = "Transfert ATM incomplet",
@@ -133,9 +154,9 @@ local localization = {
 			"1. Placez-vous pres du detecteur du terminal pour etre identifie.",
 			"2. Creez votre compte si necessaire.",
 			"3. Consultez ensuite votre solde et les cours du marche.",
-			"4. Deposez vos objets dans le container du haut.",
-			"5. Touchez un actif a gauche pour voir ses details.",
-			"6. Les retraits sortent vers le container du bas."
+			"4. L'inventory manager lit directement votre inventaire joueur.",
+			"5. Les depots partent vers le coffre central de la banque.",
+			"6. Les retraits arrivent directement dans votre inventaire."
 		},
 		assist = "Touchez un bouton pour continuer.",
 		currency = serverData.currencyLabel or "Credits"
@@ -167,6 +188,18 @@ local localization = {
 		register_chat_1 = "Your Atlas Bank account has been created. Key: ",
 		register_chat_2 = " Return to the terminal to check your balance.",
 		account_title = "Bank account",
+		account_history = "History",
+		transfer = "Transfer",
+		transfer_title = "New transfer",
+		choose_recipient = "Choose a recipient",
+		no_recipient = "No other account available",
+		recipient = "Recipient",
+		transfer_summary = "Transfer to",
+		transfer_description = "ATM transfer",
+		recent_activity = "Recent activity",
+		no_activity = "No recent activity",
+		refresh = "Refresh",
+		unknown_counterparty = "External account",
 		key = "Key",
 		status = "Status",
 		status_online = "Connected to terminal",
@@ -181,10 +214,15 @@ local localization = {
 		close = "Close",
 		operation_done = "Operation recorded",
 		operation_error = "Operation rejected",
-		error_missing_inventory = "ATM inventory missing",
-		error_missing_items = "Not enough items in deposit inventory",
-		error_output_blocked = "ATM output unavailable",
-		error_vault_blocked = "ATM vault unavailable",
+		error_missing_inventory = "ATM infrastructure missing",
+		error_missing_items = "Not enough items in player inventory",
+		error_output_blocked = "Player delivery unavailable",
+		error_vault_blocked = "Bank reserve unavailable",
+		error_missing_manager = "Inventory Manager not found",
+		error_missing_bank_chest = "Central bank chest not found",
+		error_inventory_link = "No Memory Card linked to the inventory manager",
+		error_inventory_owner = "Memory Card owner does not match detected player",
+		error_player_inventory_full = "Player inventory is too full",
 		error_notenoughbalance = "Insufficient balance",
 		error_asset_stock = "Public reserve is too low",
 		error_partial_move = "ATM transfer incomplete",
@@ -198,9 +236,9 @@ local localization = {
 			"1. Stand near the terminal detector to be identified.",
 			"2. Create your account if needed.",
 			"3. Then check your balance and market rates.",
-			"4. Put your items in the top deposit inventory.",
-			"5. Touch an asset on the left to see details.",
-			"6. Withdrawals are sent to the bottom output inventory."
+			"4. The inventory manager reads directly from your player inventory.",
+			"5. Deposits go to the bank central chest.",
+			"6. Withdrawals are inserted directly into your inventory."
 		},
 		assist = "Touch a button to continue.",
 		currency = serverData.currencyLabel or "Credits"
@@ -242,7 +280,13 @@ local state = {
 	accountKey = nil,
 	quotes = {},
 	history = {},
+	accountLog = {},
+	accountLogOffset = 1,
+	clientDirectory = nil,
+	transferRecipientKey = nil,
+	transferRecipientOffset = 1,
 	selectedAsset = nil,
+	quoteOffset = 1,
 	buttons = {},
 	pendingOperation = nil,
 	pendingQuantity = "1",
@@ -395,9 +439,12 @@ local function getInventory(reference)
 	return inventory
 end
 
-local function getInventoryName(reference)
-	local _, name = resolvePeripheral(reference, "list")
-	return name
+local function getInventoryManager()
+	local manager = select(1, resolvePeripheral(inventoryConfig.inventoryManagerPeripheral, "getItems"))
+	if (manager == nil or not hasMethod(manager, "addItemToPlayer") or not hasMethod(manager, "removeItemFromPlayer")) then
+		return nil
+	end
+	return manager
 end
 
 local function normalizeItemToken(value)
@@ -458,25 +505,54 @@ local function countMatchingItems(inventory, quote)
 	return total
 end
 
-local function moveMatchingItems(fromInventory, destinationName, quote, wantedQuantity)
-	if (fromInventory == nil or destinationName == nil or not hasMethod(fromInventory, "pushItems")) then
+local function countMatchingPlayerItems(manager, quote)
+	if (manager == nil or not hasMethod(manager, "getItems")) then
 		return 0
 	end
-	local moved = 0
+
+	local ok, items = pcall(manager.getItems)
+	if (not ok or type(items) ~= "table") then
+		return 0
+	end
+
+	local total = 0
+	for _, item in ipairs(items) do
+		if (assetMatchesItem(quote, item, item)) then
+			total = total + (item.count or 0)
+		end
+	end
+	return total
+end
+
+local function moveMatchingItemsFromPlayer(manager, direction, quote, wantedQuantity)
+	if (manager == nil or direction == nil or not hasMethod(manager, "removeItemFromPlayer")) then
+		return 0
+	end
+
 	local remaining = math.max(0, math.floor(tonumber(wantedQuantity) or 0))
 	if (remaining <= 0) then
 		return 0
 	end
 
-	for slot, basic in pairs(fromInventory.list()) do
+	local ok, items = pcall(manager.getItems)
+	if (not ok or type(items) ~= "table") then
+		return 0
+	end
+
+	local moved = 0
+	for _, item in ipairs(items) do
 		if (remaining <= 0) then
 			break
 		end
-		local detail = getItemDetail(fromInventory, slot, basic)
-		if (assetMatchesItem(quote, basic, detail)) then
+		if (assetMatchesItem(quote, item, item)) then
+			local filter = {
+				name = item.name,
+				fromSlot = item.slot,
+				count = math.min(remaining, item.count or remaining)
+			}
+			local okMove, result = pcall(manager.removeItemFromPlayer, direction, filter)
 			local movedNow = 0
-			local ok, result = pcall(fromInventory.pushItems, destinationName, slot, remaining)
-			if (ok and type(result) == "number") then
+			if (okMove and type(result) == "number") then
 				movedNow = result
 			end
 			moved = moved + movedNow
@@ -485,6 +561,58 @@ local function moveMatchingItems(fromInventory, destinationName, quote, wantedQu
 	end
 
 	return moved
+end
+
+local function moveMatchingItemsToPlayer(manager, inventory, direction, quote, wantedQuantity)
+	if (manager == nil or inventory == nil or direction == nil or not hasMethod(manager, "addItemToPlayer")) then
+		return 0
+	end
+
+	local remaining = math.max(0, math.floor(tonumber(wantedQuantity) or 0))
+	if (remaining <= 0) then
+		return 0
+	end
+
+	local moved = 0
+	for slot, basic in pairs(inventory.list()) do
+		if (remaining <= 0) then
+			break
+		end
+		local detail = getItemDetail(inventory, slot, basic)
+		if (assetMatchesItem(quote, basic, detail)) then
+			local filter = {
+				name = (detail and detail.name) or basic.name,
+				fromSlot = slot,
+				count = math.min(remaining, basic.count or remaining)
+			}
+			local okMove, result = pcall(manager.addItemToPlayer, direction, filter)
+			local movedNow = 0
+			if (okMove and type(result) == "number") then
+				movedNow = result
+			end
+			moved = moved + movedNow
+			remaining = remaining - movedNow
+		end
+	end
+
+	return moved
+end
+
+local function validatePlayerInventoryAccess()
+	local manager = getInventoryManager()
+	if (manager == nil) then
+		return false, nil, t("error_missing_manager")
+	end
+
+	local okOwner, owner = pcall(manager.getOwner)
+	if (not okOwner or owner == nil or owner == "") then
+		return false, nil, t("error_inventory_link")
+	end
+	if (state.currentPlayer == nil or string.lower(tostring(owner)) ~= string.lower(tostring(state.currentPlayer))) then
+		return false, nil, t("error_inventory_owner")
+	end
+
+	return true, manager, nil
 end
 
 local function colorFromName(name)
@@ -509,6 +637,69 @@ local function refreshPlayerAndAccount()
 	end
 end
 
+local function refreshClientDirectory()
+	local ok, response = pcall(bankapi.getClientData)
+	if (ok and type(response) == "table") then
+		state.clientDirectory = response
+	end
+end
+
+local function refreshAccountLog()
+	state.accountLog = {}
+	state.accountLogOffset = 1
+	if (state.accountKey == nil) then
+		return
+	end
+
+	local ok, response = pcall(bankapi.getTransactionLog, state.accountKey)
+	if (ok and type(response) == "table") then
+		for index = #response, 1, -1 do
+			state.accountLog[#state.accountLog + 1] = response[index]
+		end
+	end
+end
+
+local function resolveOtherAccountName(otherKey)
+	if (state.clientDirectory ~= nil and state.clientDirectory[otherKey] ~= nil) then
+		return state.clientDirectory[otherKey].name or otherKey
+	end
+	return t("unknown_counterparty")
+end
+
+local function formatSignedAmount(amount)
+	local numericAmount = tonumber(amount) or 0
+	if (numericAmount >= 0) then
+		return "+" .. tostring(numericAmount), theme.success
+	end
+	return tostring(numericAmount), theme.danger
+end
+
+local function sortedTransferRecipients()
+	local recipients = {}
+	if (state.clientDirectory == nil or state.accountKey == nil) then
+		return recipients
+	end
+
+	for key, account in pairs(state.clientDirectory) do
+		if (key ~= state.accountKey) then
+			recipients[#recipients + 1] = {
+				key = key,
+				name = account.name or key,
+				playerName = account.playerName
+			}
+		end
+	end
+
+	table.sort(recipients, function(a, b)
+		return string.lower(a.name) < string.lower(b.name)
+	end)
+
+	return recipients
+end
+
+local selectedQuoteIndex
+local ensureSelectedQuoteVisible
+
 local function refreshQuotes()
 	local ok, quotes = pcall(bankapi.getAssetQuotes)
 	if (not ok or type(quotes) ~= "table") then
@@ -526,6 +717,10 @@ local function refreshQuotes()
 	if (state.selectedAsset == nil and #state.quotes > 0) then
 		state.selectedAsset = state.quotes[1].id
 	end
+	if (selectedQuoteIndex() == nil and #state.quotes > 0) then
+		state.selectedAsset = state.quotes[1].id
+	end
+	ensureSelectedQuoteVisible(1)
 end
 
 local function selectedQuote()
@@ -541,6 +736,33 @@ local function selectedQuote()
 		return state.quotes[1]
 	end
 	return nil
+end
+
+selectedQuoteIndex = function()
+	for index, quote in ipairs(state.quotes) do
+		if (quote.id == state.selectedAsset) then
+			return index
+		end
+	end
+	return nil
+end
+
+ensureSelectedQuoteVisible = function(maxVisible)
+	if (#state.quotes == 0) then
+		state.quoteOffset = 1
+		return
+	end
+
+	maxVisible = math.max(1, maxVisible or 1)
+	local maxOffset = math.max(1, #state.quotes - maxVisible + 1)
+	state.quoteOffset = math.max(1, math.min(state.quoteOffset or 1, maxOffset))
+
+	local selectedIndex = selectedQuoteIndex() or 1
+	if (selectedIndex < state.quoteOffset) then
+		state.quoteOffset = selectedIndex
+	elseif (selectedIndex >= state.quoteOffset + maxVisible) then
+		state.quoteOffset = selectedIndex - maxVisible + 1
+	end
 end
 
 local function drawGraph(x, y, w, h, values)
@@ -705,8 +927,105 @@ local function drawAccountPage()
 		writeAt(panelX + 3, panelY + 8, trimText(t("key") .. ": " .. tostring(state.accountKey), panelW - 6), theme.sub, theme.card)
 		writeAt(panelX + 3, panelY + 11, trimText(t("balance") .. ": " .. tostring(state.account.balance) .. " " .. t("currency"), panelW - 6), theme.accent, theme.card)
 		writeAt(panelX + 3, panelY + 14, trimText(t("status") .. ": " .. t("status_online"), panelW - 6), theme.sub, theme.card)
+		local buttonWidth = math.max(14, math.floor((panelW - 10) / 2))
+		roundedButton("account_history", panelX + 3, panelY + 18, buttonWidth, t("account_history"), theme.primary, theme.primaryText)
+		roundedButton("account_transfer", panelX + 5 + buttonWidth, panelY + 18, buttonWidth, t("transfer"), theme.warning, theme.warningText)
 	else
 		writeAt(panelX + 3, panelY + 8, trimText(t("no_account"), panelW - 6), theme.warning, theme.card)
+	end
+end
+
+local function drawAccountHistoryPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local shell = drawMainShell("account", theme.success)
+	local panelX = shell.contentX
+	local panelY = shell.contentY
+	local panelW = shell.contentW
+	local panelH = shell.contentH
+	flatPanel(panelX, panelY, panelW, panelH, t("recent_activity"))
+
+	roundedButton("account", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton("account_refresh", panelX + panelW - 17, panelY + 2, 14, t("refresh"), theme.warning, theme.warningText)
+
+	if (#state.accountLog == 0) then
+		writeAt(panelX + 3, panelY + 6, trimText(t("no_activity"), panelW - 6), theme.sub, theme.card)
+		return
+	end
+
+	local listTop = panelY + 5
+	local visibleRows = math.max(1, math.floor((panelH - 10) / 3))
+	local maxOffset = math.max(1, #state.accountLog - visibleRows + 1)
+	state.accountLogOffset = math.max(1, math.min(state.accountLogOffset or 1, maxOffset))
+	local lastVisible = math.min(#state.accountLog, state.accountLogOffset + visibleRows - 1)
+
+	local row = 0
+	for index = state.accountLogOffset, lastVisible do
+		local entry = state.accountLog[index]
+		local y = listTop + (row * 3)
+		local title = trimText(resolveOtherAccountName(entry.other) .. " | " .. (entry.description or ""), panelW - 10)
+		local amountText, amountColor = formatSignedAmount(entry.amount)
+		writeAt(panelX + 3, y, title, theme.text, theme.card)
+		writeAt(panelX + 3, y + 1, trimText(entry.time or "", panelW - 20), theme.sub, theme.card)
+		writeAt(panelX + panelW - #amountText - 4, y, amountText, amountColor, theme.card)
+		row = row + 1
+	end
+
+	if (state.accountLogOffset > 1) then
+		roundedButton("history_up", panelX + panelW - 17, panelY + panelH - 9, 14, "^", theme.warning, theme.warningText)
+	end
+	if (lastVisible < #state.accountLog) then
+		roundedButton("history_down", panelX + panelW - 17, panelY + panelH - 5, 14, "v", theme.primary, theme.primaryText)
+	end
+end
+
+local function drawTransferRecipientPage()
+	clear()
+	state.buttons = {}
+	drawHeader()
+
+	local shell = drawMainShell("account", theme.warning)
+	local panelX = shell.contentX
+	local panelY = shell.contentY
+	local panelW = shell.contentW
+	local panelH = shell.contentH
+	local recipients = sortedTransferRecipients()
+
+	flatPanel(panelX, panelY, panelW, panelH, t("transfer_title"))
+	roundedButton("account", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton("transfer_refresh", panelX + panelW - 17, panelY + 2, 14, t("refresh"), theme.warning, theme.warningText)
+	writeAt(panelX + 3, panelY + 4, trimText(t("choose_recipient"), panelW - 6), theme.sub, theme.card)
+
+	if (#recipients == 0) then
+		writeAt(panelX + 3, panelY + 8, trimText(t("no_recipient"), panelW - 6), theme.sub, theme.card)
+		return
+	end
+
+	local listTop = panelY + 7
+	local visibleRows = math.max(1, math.floor((panelH - 12) / 4))
+	local maxOffset = math.max(1, #recipients - visibleRows + 1)
+	state.transferRecipientOffset = math.max(1, math.min(state.transferRecipientOffset or 1, maxOffset))
+	local lastVisible = math.min(#recipients, state.transferRecipientOffset + visibleRows - 1)
+
+	local row = 0
+	for index = state.transferRecipientOffset, lastVisible do
+		local recipient = recipients[index]
+		local y = listTop + (row * 4)
+		local bg = recipient.key == state.transferRecipientKey and theme.panelTop or theme.cardDark
+		local fg = recipient.key == state.transferRecipientKey and theme.cardDark or theme.text
+		fillRoundedRect(panelX + 3, y, panelW - 6, 3, bg, 2)
+		writeAt(panelX + 5, y + 1, trimText(recipient.name, panelW - 18), fg, nil)
+		addButton("recipient:" .. recipient.key, panelX + 3, y, panelW - 6, 3)
+		row = row + 1
+	end
+
+	if (state.transferRecipientOffset > 1) then
+		roundedButton("recipient_up", panelX + panelW - 17, panelY + panelH - 9, 14, "^", theme.warning, theme.warningText)
+	end
+	if (lastVisible < #recipients) then
+		roundedButton("recipient_down", panelX + panelW - 17, panelY + panelH - 5, 14, "v", theme.primary, theme.primaryText)
 	end
 end
 
@@ -731,17 +1050,23 @@ local function drawMarketPage()
 		writeAt(listX + 2, listY + 3, trimText(t("market_empty"), listW - 4), theme.sub, theme.card)
 	else
 		local maxVisible = math.max(3, math.floor((listH - 5) / 4))
-		for index, assetQuote in ipairs(state.quotes) do
-			if (index > maxVisible) then
-				break
-			end
+		ensureSelectedQuoteVisible(maxVisible)
+		local lastVisible = math.min(#state.quotes, state.quoteOffset + maxVisible - 1)
+		for index = state.quoteOffset, lastVisible do
+			local assetQuote = state.quotes[index]
 			local buttonBg = (assetQuote.id == state.selectedAsset) and theme.panelTop or theme.cardDark
 			local buttonFg = (assetQuote.id == state.selectedAsset) and theme.cardDark or theme.text
-			local rowY = listY + 2 + ((index - 1) * 4)
+			local rowY = listY + 2 + ((index - state.quoteOffset) * 4)
 			local label = trimText(assetQuote.name, listW - 8)
 			fillRoundedRect(listX + 2, rowY, listW - 4, 3, buttonBg, 2)
 			writeAt(listX + 4, rowY + 1, label, buttonFg, nil)
 			addButton("asset:" .. assetQuote.id, listX + 2, rowY, listW - 4, 3)
+		end
+		if (state.quoteOffset > 1) then
+			roundedButton("asset_nav_up", listX + 2, listY + listH - 8, listW - 4, "^", theme.warning, theme.warningText)
+		end
+		if (lastVisible < #state.quotes) then
+			roundedButton("asset_nav_down", listX + 2, listY + listH - 4, listW - 4, "v", theme.primary, theme.primaryText)
 		end
 	end
 
@@ -777,15 +1102,23 @@ local function drawQuantityPage()
 	state.buttons = {}
 	drawHeader()
 
-	local shell = drawMainShell("market", state.pendingOperation == "deposit" and theme.success or theme.primary)
+	local shell = drawMainShell(state.pendingOperation == "transfer" and "account" or "market", state.pendingOperation == "deposit" and theme.success or (state.pendingOperation == "transfer" and theme.warning or theme.primary))
 	local quote = selectedQuote()
 	local panelX = shell.contentX
 	local panelY = shell.contentY
 	local panelW = shell.contentW
 	local panelH = shell.contentH
 
-	flatPanel(panelX, panelY, panelW, panelH, quote and quote.name or t("select_asset"))
-	writeAt(panelX + 3, panelY + 3, trimText((state.pendingOperation == "deposit" and t("deposit_asset") or t("withdraw_asset")) .. " | " .. (quote and quote.name or "-"), panelW - 6), theme.text, theme.card)
+	local title = quote and quote.name or t("select_asset")
+	local operationLabel = state.pendingOperation == "deposit" and t("deposit_asset") or t("withdraw_asset")
+	if (state.pendingOperation == "transfer") then
+		title = t("transfer_title")
+		local recipientName = resolveOtherAccountName(state.transferRecipientKey)
+		operationLabel = t("transfer_summary") .. " " .. recipientName
+	end
+
+	flatPanel(panelX, panelY, panelW, panelH, title)
+	writeAt(panelX + 3, panelY + 3, trimText(operationLabel, panelW - 6), theme.text, theme.card)
 	writeAt(panelX + 3, panelY + 6, trimText(t("quantity") .. ": " .. tostring(state.pendingQuantity), panelW - 6), theme.accent, theme.card)
 
 	local keypadX = panelX + 3
@@ -816,7 +1149,7 @@ local function drawQuantityPage()
 		end
 	end
 
-	roundedButton("market", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
+	roundedButton(state.pendingOperation == "transfer" and "transfer_recipient" or "market", 4, height - 4, 13, t("back"), theme.primary, theme.primaryText)
 end
 
 local function drawHelpPage()
@@ -850,6 +1183,10 @@ local function redraw()
 		drawRegisterPage()
 	elseif (state.page == "account") then
 		drawAccountPage()
+	elseif (state.page == "account_history") then
+		drawAccountHistoryPage()
+	elseif (state.page == "transfer_recipient") then
+		drawTransferRecipientPage()
 	elseif (state.page == "market") then
 		drawMarketPage()
 	elseif (state.page == "quantity") then
@@ -887,23 +1224,35 @@ local function setFlashMessage(text, success)
 end
 
 local function executeDepositOperation(quote, quantity)
-	local depositInventory = getInventory(inventoryConfig.depositPeripheral)
+	local accessOk, manager, accessError = validatePlayerInventoryAccess()
 	local vaultInventory = getInventory(inventoryConfig.vaultPeripheral)
-	local depositName = getInventoryName(inventoryConfig.depositPeripheral)
-	local vaultName = getInventoryName(inventoryConfig.vaultPeripheral)
+	local bankChestDirection = inventoryConfig.bankChestDirection
 
-	if (depositInventory == nil or vaultInventory == nil or depositName == nil or vaultName == nil) then
+	if (not accessOk) then
+		return false, accessError
+	end
+	if (vaultInventory == nil) then
+		return false, t("error_missing_bank_chest")
+	end
+	if (bankChestDirection == nil or bankChestDirection == "") then
 		return false, t("error_missing_inventory")
 	end
+	if (countMatchingPlayerItems(manager, quote) < quantity) then
+		return false, t("error_missing_items")
+	end
 
-	local moved = moveMatchingItems(depositInventory, vaultName, quote, quantity)
+	local moved = moveMatchingItemsFromPlayer(manager, bankChestDirection, quote, quantity)
 	if (moved <= 0) then
 		return false, t("error_missing_items")
+	end
+	if (moved < quantity) then
+		moveMatchingItemsToPlayer(manager, vaultInventory, bankChestDirection, quote, moved)
+		return false, t("error_partial_move")
 	end
 
 	local success, message = bankapi.depositAsset(state.accountKey, quote.id, moved)
 	if (not success) then
-		moveMatchingItems(vaultInventory, depositName, quote, moved)
+		moveMatchingItemsToPlayer(manager, vaultInventory, bankChestDirection, quote, moved)
 		return false, message or t("operation_error")
 	end
 
@@ -911,12 +1260,17 @@ local function executeDepositOperation(quote, quantity)
 end
 
 local function executeWithdrawOperation(quote, quantity)
+	local accessOk, manager, accessError = validatePlayerInventoryAccess()
 	local vaultInventory = getInventory(inventoryConfig.vaultPeripheral)
-	local outputInventory = getInventory(inventoryConfig.outputPeripheral)
-	local vaultName = getInventoryName(inventoryConfig.vaultPeripheral)
-	local outputName = getInventoryName(inventoryConfig.outputPeripheral)
+	local bankChestDirection = inventoryConfig.bankChestDirection
 
-	if (vaultInventory == nil or outputInventory == nil or vaultName == nil or outputName == nil) then
+	if (not accessOk) then
+		return false, accessError
+	end
+	if (vaultInventory == nil) then
+		return false, t("error_missing_bank_chest")
+	end
+	if (bankChestDirection == nil or bankChestDirection == "") then
 		return false, t("error_missing_inventory")
 	end
 	if (quantity > (quote.maxWithdraw or 0)) then
@@ -929,18 +1283,18 @@ local function executeWithdrawOperation(quote, quantity)
 		return false, t("error_vault_blocked")
 	end
 
-	local moved = moveMatchingItems(vaultInventory, outputName, quote, quantity)
+	local moved = moveMatchingItemsToPlayer(manager, vaultInventory, bankChestDirection, quote, quantity)
 	if (moved <= 0) then
-		return false, t("error_output_blocked")
+		return false, t("error_player_inventory_full")
 	end
 	if (moved < quantity) then
-		moveMatchingItems(outputInventory, vaultName, quote, moved)
+		moveMatchingItemsFromPlayer(manager, bankChestDirection, quote, moved)
 		return false, t("error_partial_move")
 	end
 
 	local success, message = bankapi.withdrawAsset(state.accountKey, quote.id, quantity)
 	if (not success) then
-		moveMatchingItems(outputInventory, vaultName, quote, quantity)
+		moveMatchingItemsFromPlayer(manager, bankChestDirection, quote, quantity)
 		return false, message or t("operation_error")
 	end
 
@@ -948,28 +1302,57 @@ local function executeWithdrawOperation(quote, quantity)
 end
 
 local function performPendingOperation()
-	local quote = selectedQuote()
+	local operation = state.pendingOperation
 	local quantity = tonumber(state.pendingQuantity)
-	if (state.accountKey == nil or quote == nil or quantity == nil or quantity <= 0) then
+	if (state.accountKey == nil or quantity == nil or quantity <= 0) then
 		setFlashMessage(t("operation_error"), false)
-		state.page = "market"
+		state.page = operation == "transfer" and "account" or "market"
 		redraw()
 		return
 	end
 
 	local success, message
-	if (state.pendingOperation == "deposit") then
+	if (operation == "transfer") then
+		if (state.transferRecipientKey == nil) then
+			setFlashMessage(t("operation_error"), false)
+			state.page = "transfer_recipient"
+			redraw()
+			return
+		end
+		success, message = bankapi.transaction(state.accountKey, state.transferRecipientKey, quantity, t("transfer_description"))
+	elseif (operation == "deposit") then
+		local quote = selectedQuote()
+		if (quote == nil) then
+			setFlashMessage(t("operation_error"), false)
+			state.page = "market"
+			redraw()
+			return
+		end
 		success, message = executeDepositOperation(quote, quantity)
 	else
+		local quote = selectedQuote()
+		if (quote == nil) then
+			setFlashMessage(t("operation_error"), false)
+			state.page = "market"
+			redraw()
+			return
+		end
 		success, message = executeWithdrawOperation(quote, quantity)
 	end
 
 	refreshPlayerAndAccount()
+	refreshClientDirectory()
+	refreshAccountLog()
 	refreshQuotes()
 	setFlashMessage(message or (success and t("operation_done") or t("operation_error")), success)
 	state.pendingOperation = nil
 	state.pendingQuantity = "1"
-	state.page = "market"
+	state.transferRecipientKey = nil
+	if (operation == "transfer") then
+		state.page = success and "account" or "transfer_recipient"
+	else
+		state.page = "market"
+	end
 	redraw()
 end
 
@@ -990,9 +1373,38 @@ local function handleAction(action)
 		createAccount()
 		return
 	elseif (action == "account") then
+		state.pendingOperation = nil
+		state.pendingQuantity = "1"
 		state.page = "account"
+	elseif (action == "account_transfer") then
+		refreshPlayerAndAccount()
+		refreshClientDirectory()
+		state.pendingOperation = nil
+		state.pendingQuantity = "1"
+		state.transferRecipientKey = nil
+		state.transferRecipientOffset = 1
+		state.page = "transfer_recipient"
+	elseif (action == "account_history") then
+		refreshClientDirectory()
+		refreshAccountLog()
+		state.page = "account_history"
+	elseif (action == "account_refresh") then
+		refreshPlayerAndAccount()
+		refreshClientDirectory()
+		refreshAccountLog()
+		state.page = "account_history"
 	elseif (action == "market") then
+		state.pendingOperation = nil
+		state.pendingQuantity = "1"
 		state.page = "market"
+	elseif (action == "transfer_refresh") then
+		refreshPlayerAndAccount()
+		refreshClientDirectory()
+		state.page = "transfer_recipient"
+	elseif (action == "transfer_recipient") then
+		state.pendingOperation = nil
+		state.pendingQuantity = "1"
+		state.page = "transfer_recipient"
 	elseif (action == "help") then
 		state.page = "help"
 	elseif (action == "deposit_asset") then
@@ -1006,6 +1418,29 @@ local function handleAction(action)
 	elseif (string.sub(action, 1, 6) == "asset:") then
 		state.selectedAsset = string.sub(action, 7)
 		state.page = "market"
+	elseif (action == "asset_nav_up") then
+		state.quoteOffset = math.max(1, (state.quoteOffset or 1) - 1)
+		state.page = "market"
+	elseif (action == "asset_nav_down") then
+		state.quoteOffset = math.min(math.max(1, #state.quotes), (state.quoteOffset or 1) + 1)
+		state.page = "market"
+	elseif (action == "history_up") then
+		state.accountLogOffset = math.max(1, (state.accountLogOffset or 1) - 1)
+		state.page = "account_history"
+	elseif (action == "history_down") then
+		state.accountLogOffset = math.min(math.max(1, #state.accountLog), (state.accountLogOffset or 1) + 1)
+		state.page = "account_history"
+	elseif (action == "recipient_up") then
+		state.transferRecipientOffset = math.max(1, (state.transferRecipientOffset or 1) - 1)
+		state.page = "transfer_recipient"
+	elseif (action == "recipient_down") then
+		state.transferRecipientOffset = (state.transferRecipientOffset or 1) + 1
+		state.page = "transfer_recipient"
+	elseif (string.sub(action, 1, 10) == "recipient:") then
+		state.transferRecipientKey = string.sub(action, 11)
+		state.pendingOperation = "transfer"
+		state.pendingQuantity = "1"
+		state.page = "quantity"
 	elseif (string.sub(action, 1, 4) == "qty:") then
 		local value = string.sub(action, 5)
 		if (value == t("clear")) then
@@ -1040,13 +1475,19 @@ while true do
 	elseif (event == "timer") then
 		if (eventData[2] == playerTimer) then
 			refreshPlayerAndAccount()
+			if (state.page == "account_history" or state.page == "transfer_recipient") then
+				refreshClientDirectory()
+			end
+			if (state.page == "account_history") then
+				refreshAccountLog()
+			end
 			if (state.page ~= "sleep") then
 				redraw()
 			end
 			playerTimer = os.startTimer(2)
 		elseif (eventData[2] == quoteTimer) then
 			refreshQuotes()
-			if (state.page == "market" or state.page == "home" or state.page == "account") then
+			if (state.page == "market" or state.page == "home" or state.page == "account" or state.page == "account_history" or state.page == "transfer_recipient") then
 				redraw()
 			end
 			quoteTimer = os.startTimer(8)

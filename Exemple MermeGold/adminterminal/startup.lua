@@ -34,7 +34,10 @@ local localization = {
 		deposit_asset = "Crediter un actif",
 		withdraw_asset = "Debiter un actif",
 		logout = "Quitter",
-		new_account_steps = {"Nom du joueur", "Couleur representative"},
+		new_account_steps = {"Nom du compte", "Nom du joueur", "Solde initial", "Couleur representative"},
+		initial_balance_hint = "Laissez vide pour 0",
+		invalid_number = "Montant invalide",
+		invalid_account_name = "Nom de compte invalide",
 		transaction_steps = {"Compte expediteur", "Compte destinataire", "Montant", "Description"},
 		delete_account_steps = {"Compte a supprimer"},
 		check_log = {"Compte a consulter"},
@@ -59,7 +62,10 @@ local localization = {
 		deposit_asset = "Credit asset",
 		withdraw_asset = "Debit asset",
 		logout = "Exit",
-		new_account_steps = {"Player name", "Representative color"},
+		new_account_steps = {"Account name", "Player name", "Initial balance", "Representative color"},
+		initial_balance_hint = "Leave blank for 0",
+		invalid_number = "Invalid amount",
+		invalid_account_name = "Invalid account name",
 		transaction_steps = {"Sender account", "Recipient account", "Amount", "Description"},
 		delete_account_steps = {"Account to delete"},
 		check_log = {"Account to inspect"},
@@ -84,6 +90,31 @@ local function assetOptionList()
 		})
 	end
 	return options, quotes
+end
+
+local function trim(value)
+	return (string.gsub(string.gsub(tostring(value or ""), "^%s+", ""), "%s+$", ""))
+end
+
+local function inputOptionalBalance(steps, currentStep)
+	while true do
+		local value = bankapi.inputTextScreen({steps[1], steps[2], localization[lang].initial_balance_hint}, currentStep, 12)
+		if (value == nil) then
+			return nil
+		end
+
+		value = trim(value)
+		if (value == "") then
+			return 0
+		end
+
+		local numberValue = tonumber(value)
+		if (numberValue ~= nil and numberValue >= 0) then
+			return numberValue
+		end
+
+		bankapi.errorScreen(localization[lang].invalid_number)
+	end
 end
 
 local pass = ""
@@ -119,9 +150,25 @@ while true do
 		local steps = localization[lang].new_account_steps
 		local name = bankapi.inputTextScreen(steps, 1, 25)
 		if (name == nil) then break end
-		local color = bankapi.selectColorScreen(steps, 2)
+		name = trim(name)
+		if (name == "") then
+			bankapi.errorScreen(localization[lang].invalid_account_name)
+			break
+		end
+
+		local playerName = bankapi.inputTextScreen(steps, 2, 25)
+		if (playerName == nil) then break end
+		playerName = trim(playerName)
+		if (playerName == "") then
+			playerName = name
+		end
+
+		local initialBalance = inputOptionalBalance(steps, 3)
+		if (initialBalance == nil) then break end
+
+		local color = bankapi.selectColorScreen(steps, 4)
 		if (color == nil) then break end
-		local success, message = bankapi.newAccount(name, 0, color)
+		local success, message = bankapi.newAccount(name, initialBalance, color, playerName)
 		bankapi.responseScreen(success, message)
 
 	elseif (command == "transaction") then

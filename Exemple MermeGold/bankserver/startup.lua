@@ -92,6 +92,8 @@ local localization = {
 		asset_withdraw_description = "Retrait actif",
 		error_asset_disabled = "Actif indisponible pour cette operation",
 		error_asset_stock = "Reserve insuffisante pour ce retrait",
+		error_duplicate_player = "Ce joueur possede deja un compte",
+		error_invalidname = "Nom de compte invalide",
 		password = "Mot de passe admin",
 		password_explanation = "Mot de passe utilise par les terminaux admin",
 		reserve_ratio = "Taux de reserve",
@@ -127,6 +129,8 @@ local localization = {
 		asset_withdraw_description = "Asset withdrawal",
 		error_asset_disabled = "Asset unavailable for this operation",
 		error_asset_stock = "Insufficient reserve for this withdrawal",
+		error_duplicate_player = "This player already has an account",
+		error_invalidname = "Invalid account name",
 		password = "Admin password",
 		password_explanation = "Password used by admin terminals",
 		reserve_ratio = "Reserve ratio",
@@ -550,9 +554,38 @@ end
 
 local function newClient(data)
 	loadClients()
-	local name = data.name
-	local playerName = data.playerName or data.name
-	local color = data.color
+	local name = tostring(data.name or "")
+	local playerName = data.playerName
+	local color = tonumber(data.color) or colors.white
+	local initialBalance = tonumber(data.balance) or 0
+
+	name = string.gsub(name, "^%s+", "")
+	name = string.gsub(name, "%s+$", "")
+	if (name == "") then
+		return false, localization[settings.lang].error_invalidname
+	end
+
+	initialBalance = round2(initialBalance)
+	if (initialBalance < 0) then
+		return false, localization[settings.lang].error_invalidamount
+	end
+
+	if (playerName ~= nil) then
+		playerName = tostring(playerName)
+		playerName = string.gsub(playerName, "^%s+", "")
+		playerName = string.gsub(playerName, "%s+$", "")
+		if (playerName == "") then
+			playerName = nil
+		end
+	end
+
+	if (playerName ~= nil) then
+		for _, account in pairs(clientData) do
+			if (account.playerName ~= nil and string.lower(account.playerName) == string.lower(playerName)) then
+				return false, localization[settings.lang].error_duplicate_player
+			end
+		end
+	end
 
 	local bankKey = "2000"
 	local firstFreeClientNumber = 0
@@ -580,7 +613,7 @@ local function newClient(data)
 
 	clientData[key] = {
 		name = name,
-		balance = 0,
+		balance = initialBalance,
 		color = color,
 		playerName = playerName
 	}
@@ -589,6 +622,17 @@ local function newClient(data)
 	updateClientFile(key)
 	local logFile = fs.open(filePath.."clientData/"..key.."/log.txt", "w")
 	logFile.close()
+
+	if (initialBalance > 0) then
+		appendTransactionToLog(
+			key,
+			key,
+			-initialBalance,
+			clientData[key].balance,
+			getCurrentTime(),
+			localization[settings.lang].deposit_description
+		)
+	end
 
 	return true, {
 		message = localization[settings.lang].success_account,
