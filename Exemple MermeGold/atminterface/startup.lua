@@ -278,6 +278,7 @@ local state = {
 	currentPlayer = nil,
 	account = nil,
 	accountKey = nil,
+	detectionMisses = 0,
 	quotes = {},
 	history = {},
 	accountLog = {},
@@ -293,6 +294,8 @@ local state = {
 	pendingQuantity = "1",
 	flashMessage = nil
 }
+
+local playerDetectionGrace = 3
 
 local function clear()
 	box.fill(theme.bg)
@@ -665,15 +668,31 @@ local function colorFromName(name)
 end
 
 local function refreshPlayerAndAccount()
-	state.currentPlayer = detectPlayer()
+	local detectedPlayer = detectPlayer()
+	if (detectedPlayer == nil) then
+		if (state.currentPlayer ~= nil) then
+			state.detectionMisses = (state.detectionMisses or 0) + 1
+			if (state.detectionMisses < playerDetectionGrace) then
+				return
+			end
+		end
+
+		state.detectionMisses = 0
+		state.currentPlayer = nil
+		state.account = nil
+		state.accountKey = nil
+		return
+	end
+
+	state.detectionMisses = 0
+	state.currentPlayer = detectedPlayer
 	state.account = nil
 	state.accountKey = nil
-	if (state.currentPlayer ~= nil) then
-		local ok, success, response = pcall(bankapi.getAccountByPlayer, state.currentPlayer)
-		if (ok and success and response ~= nil) then
-			state.accountKey = response.key
-			state.account = response.account
-		end
+
+	local ok, success, response = pcall(bankapi.getAccountByPlayer, state.currentPlayer)
+	if (ok and success and response ~= nil) then
+		state.accountKey = response.key
+		state.account = response.account
 	end
 end
 
