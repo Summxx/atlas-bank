@@ -9,10 +9,12 @@ local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
 -- Vous pouvez utiliser un cote ("top") ou un nom exact de peripherique.
 -- `exchangeChestPeripheral` doit pointer vers le coffre ATM local ou le joueur depose/recupere les objets.
--- `vaultPeripheral` doit pointer vers le coffre central de la banque (ex: Netherite Chest Sophisticated Storage).
+-- `vaultPeripheral` peut pointer vers un nom exact de peripherique local ou reseau (modem filaire)
+-- pour le coffre central de la banque (ex: Netherite Chest Sophisticated Storage).
+-- Si laisse a `nil`, le terminal essaiera de detecter automatiquement un coffre central disponible.
 local inventoryConfig = {
-	exchangeChestPeripheral = "top",
-	vaultPeripheral = "back"
+	exchangeChestPeripheral = "back",
+	vaultPeripheral = nil
 }
 
 local function hasMethod(object, methodName)
@@ -135,7 +137,7 @@ local localization = {
 		error_output_blocked = "Coffre ATM indisponible ou plein",
 		error_vault_blocked = "Reserve bancaire indisponible",
 		error_missing_exchange_chest = "Coffre ATM local introuvable",
-		error_missing_bank_chest = "Coffre bancaire central introuvable",
+		error_missing_bank_chest = "Coffre bancaire central introuvable (branchez-le localement ou via modem filaire)",
 		error_notenoughbalance = "Solde insuffisant",
 		error_asset_stock = "Reserve publique insuffisante",
 		error_partial_move = "Transfert ATM incomplet",
@@ -214,7 +216,7 @@ local localization = {
 		error_output_blocked = "ATM chest unavailable or full",
 		error_vault_blocked = "Bank reserve unavailable",
 		error_missing_exchange_chest = "Local ATM chest not found",
-		error_missing_bank_chest = "Central bank chest not found",
+		error_missing_bank_chest = "Central bank chest not found (attach it locally or through a wired modem)",
 		error_notenoughbalance = "Insufficient balance",
 		error_asset_stock = "Public reserve is too low",
 		error_partial_move = "ATM transfer incomplete",
@@ -472,6 +474,83 @@ local function getInventory(reference)
 		return nil, nil
 	end
 	return inventory, inventoryName
+end
+
+local function collectInventoryCandidates(excludedNames)
+	local candidates = {}
+	local excluded = {}
+
+	for _, name in ipairs(excludedNames or {}) do
+		if (name ~= nil and name ~= "") then
+			excluded[name] = true
+		end
+	end
+
+	for _, name in ipairs(peripheral.getNames()) do
+		if (excluded[name] ~= true) then
+			local wrapped = peripheral.wrap(name)
+			if (wrapped ~= nil and hasMethod(wrapped, "list") and hasMethod(wrapped, "pushItems")) then
+				candidates[#candidates + 1] = {
+					name = name,
+					inventory = wrapped,
+					type = peripheral.getType(name) or ""
+				}
+			end
+		end
+	end
+
+	table.sort(candidates, function(a, b)
+		local aScore = 0
+		local bScore = 0
+		local aName = string.lower(a.name)
+		local bName = string.lower(b.name)
+		local aType = string.lower(a.type)
+		local bType = string.lower(b.type)
+
+		if (string.find(aName, "netherite", 1, true) ~= nil or string.find(aType, "netherite", 1, true) ~= nil) then
+			aScore = aScore + 4
+		end
+		if (string.find(bName, "netherite", 1, true) ~= nil or string.find(bType, "netherite", 1, true) ~= nil) then
+			bScore = bScore + 4
+		end
+		if (string.find(aName, "sophisticated", 1, true) ~= nil or string.find(aType, "sophisticated", 1, true) ~= nil) then
+			aScore = aScore + 3
+		end
+		if (string.find(bName, "sophisticated", 1, true) ~= nil or string.find(bType, "sophisticated", 1, true) ~= nil) then
+			bScore = bScore + 3
+		end
+		if (string.find(aName, "wired", 1, true) ~= nil or string.find(aName, "remote", 1, true) ~= nil) then
+			aScore = aScore + 1
+		end
+		if (string.find(bName, "wired", 1, true) ~= nil or string.find(bName, "remote", 1, true) ~= nil) then
+			bScore = bScore + 1
+		end
+
+		if (aScore == bScore) then
+			return aName < bName
+		end
+		return aScore > bScore
+	end)
+
+	return candidates
+end
+
+local function getExchangeInventory()
+	return getInventory(inventoryConfig.exchangeChestPeripheral)
+end
+
+local function getVaultInventory(exchangeName)
+	local vaultInventory, vaultName = getInventory(inventoryConfig.vaultPeripheral)
+	if (vaultInventory ~= nil and vaultName ~= nil and vaultName ~= exchangeName) then
+		return vaultInventory, vaultName
+	end
+
+	local candidates = collectInventoryCandidates({exchangeName, inventoryConfig.exchangeChestPeripheral, monitorSide})
+	if (#candidates == 0) then
+		return nil, nil
+	end
+
+	return candidates[1].inventory, candidates[1].name
 end
 
 local function normalizeItemToken(value)
@@ -1195,8 +1274,8 @@ local function setFlashMessage(text, success)
 end
 
 local function executeDepositOperation(quote, quantity)
-	local exchangeInventory, exchangeName = getInventory(inventoryConfig.exchangeChestPeripheral)
-	local vaultInventory, vaultName = getInventory(inventoryConfig.vaultPeripheral)
+	local exchangeInventory, exchangeName = getExchangeInventory()
+	local vaultInventory, vaultName = getVaultInventory(exchangeName)
 
 	if (exchangeInventory == nil or exchangeName == nil) then
 		return false, t("error_missing_exchange_chest")
@@ -1230,8 +1309,8 @@ local function executeDepositOperation(quote, quantity)
 end
 
 local function executeWithdrawOperation(quote, quantity)
-	local exchangeInventory, exchangeName = getInventory(inventoryConfig.exchangeChestPeripheral)
-	local vaultInventory, vaultName = getInventory(inventoryConfig.vaultPeripheral)
+	local exchangeInventory, exchangeName = getExchangeInventory()
+	local vaultInventory, vaultName = getVaultInventory(exchangeName)
 
 	if (exchangeInventory == nil or exchangeName == nil) then
 		return false, t("error_missing_exchange_chest")
