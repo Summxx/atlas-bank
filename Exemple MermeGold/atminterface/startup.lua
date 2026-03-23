@@ -8,13 +8,11 @@ local monitor = peripheral.find("monitor")
 local chatBox = peripheral.wrap("left")
 local playerDetector = peripheral.wrap("right")
 -- Vous pouvez utiliser un cote ("top") ou un nom exact de peripherique.
--- `inventoryManagerPeripheral` doit pointer vers un Inventory Manager Advanced Peripherals.
+-- `exchangeChestPeripheral` doit pointer vers le coffre ATM local ou le joueur depose/recupere les objets.
 -- `vaultPeripheral` doit pointer vers le coffre central de la banque (ex: Netherite Chest Sophisticated Storage).
--- `bankChestDirection` est la direction du coffre par rapport a l'inventory manager.
 local inventoryConfig = {
-	inventoryManagerPeripheral = "inventoryManager",
-	vaultPeripheral = "back",
-	bankChestDirection = "up"
+	exchangeChestPeripheral = "top",
+	vaultPeripheral = "back"
 }
 
 local function hasMethod(object, methodName)
@@ -132,15 +130,12 @@ local localization = {
 		close = "Fermer",
 		operation_done = "Operation enregistree",
 		operation_error = "Operation refusee",
-		error_missing_inventory = "Infrastructure ATM manquante",
-		error_missing_items = "Objets insuffisants dans l'inventaire du joueur",
-		error_output_blocked = "Depot joueur indisponible",
+		error_missing_inventory = "Infrastructure de coffres ATM manquante",
+		error_missing_items = "Objets insuffisants dans le coffre ATM",
+		error_output_blocked = "Coffre ATM indisponible ou plein",
 		error_vault_blocked = "Reserve bancaire indisponible",
-		error_missing_manager = "Inventory Manager introuvable",
+		error_missing_exchange_chest = "Coffre ATM local introuvable",
 		error_missing_bank_chest = "Coffre bancaire central introuvable",
-		error_inventory_link = "Aucune Memory Card liee a l'inventory manager",
-		error_inventory_owner = "La Memory Card ne correspond pas au joueur detecte",
-		error_player_inventory_full = "Inventaire joueur trop plein",
 		error_notenoughbalance = "Solde insuffisant",
 		error_asset_stock = "Reserve publique insuffisante",
 		error_partial_move = "Transfert ATM incomplet",
@@ -154,9 +149,9 @@ local localization = {
 			"1. Placez-vous pres du detecteur du terminal pour etre identifie.",
 			"2. Creez votre compte si necessaire.",
 			"3. Consultez ensuite votre solde et les cours du marche.",
-			"4. L'inventory manager lit directement votre inventaire joueur.",
-			"5. Les depots partent vers le coffre central de la banque.",
-			"6. Les retraits arrivent directement dans votre inventaire."
+			"4. Placez un coffre ATM a cote du monitor et deposez vos objets dedans.",
+			"5. Les depots partent du coffre ATM vers le coffre central de la banque.",
+			"6. Les retraits arrivent dans le coffre ATM pour etre recuperes."
 		},
 		assist = "Touchez un bouton pour continuer.",
 		currency = serverData.currencyLabel or "Credits"
@@ -214,15 +209,12 @@ local localization = {
 		close = "Close",
 		operation_done = "Operation recorded",
 		operation_error = "Operation rejected",
-		error_missing_inventory = "ATM infrastructure missing",
-		error_missing_items = "Not enough items in player inventory",
-		error_output_blocked = "Player delivery unavailable",
+		error_missing_inventory = "ATM chest infrastructure missing",
+		error_missing_items = "Not enough items in the ATM chest",
+		error_output_blocked = "ATM chest unavailable or full",
 		error_vault_blocked = "Bank reserve unavailable",
-		error_missing_manager = "Inventory Manager not found",
+		error_missing_exchange_chest = "Local ATM chest not found",
 		error_missing_bank_chest = "Central bank chest not found",
-		error_inventory_link = "No Memory Card linked to the inventory manager",
-		error_inventory_owner = "Memory Card owner does not match detected player",
-		error_player_inventory_full = "Player inventory is too full",
 		error_notenoughbalance = "Insufficient balance",
 		error_asset_stock = "Public reserve is too low",
 		error_partial_move = "ATM transfer incomplete",
@@ -236,9 +228,9 @@ local localization = {
 			"1. Stand near the terminal detector to be identified.",
 			"2. Create your account if needed.",
 			"3. Then check your balance and market rates.",
-			"4. The inventory manager reads directly from your player inventory.",
-			"5. Deposits go to the bank central chest.",
-			"6. Withdrawals are inserted directly into your inventory."
+			"4. Place an ATM chest next to the monitor and put your items inside.",
+			"5. Deposits move from the ATM chest to the bank central chest.",
+			"6. Withdrawals are delivered into the ATM chest for pickup."
 		},
 		assist = "Touch a button to continue.",
 		currency = serverData.currencyLabel or "Credits"
@@ -475,28 +467,11 @@ local function sendPlayerMessage(playerName, text)
 end
 
 local function getInventory(reference)
-	local inventory = select(1, resolvePeripheral(reference, "list"))
+	local inventory, inventoryName = resolvePeripheral(reference, "list")
 	if (inventory == nil or not hasMethod(inventory, "list")) then
-		return nil
+		return nil, nil
 	end
-	return inventory
-end
-
-local function getInventoryManager()
-	local manager = select(1, resolvePeripheral(inventoryConfig.inventoryManagerPeripheral, "getItems"))
-	if (manager == nil) then
-		for _, name in ipairs(peripheral.getNames()) do
-			local wrapped = peripheral.wrap(name)
-			if (wrapped ~= nil and hasMethod(wrapped, "getItems") and hasMethod(wrapped, "addItemToPlayer") and hasMethod(wrapped, "removeItemFromPlayer")) then
-				manager = wrapped
-				break
-			end
-		end
-	end
-	if (manager == nil or not hasMethod(manager, "addItemToPlayer") or not hasMethod(manager, "removeItemFromPlayer")) then
-		return nil
-	end
-	return manager
+	return inventory, inventoryName
 end
 
 local function normalizeItemToken(value)
@@ -557,66 +532,8 @@ local function countMatchingItems(inventory, quote)
 	return total
 end
 
-local function countMatchingPlayerItems(manager, quote)
-	if (manager == nil or not hasMethod(manager, "getItems")) then
-		return 0
-	end
-
-	local ok, items = pcall(manager.getItems)
-	if (not ok or type(items) ~= "table") then
-		return 0
-	end
-
-	local total = 0
-	for _, item in ipairs(items) do
-		if (assetMatchesItem(quote, item, item)) then
-			total = total + (item.count or 0)
-		end
-	end
-	return total
-end
-
-local function moveMatchingItemsFromPlayer(manager, direction, quote, wantedQuantity)
-	if (manager == nil or direction == nil or not hasMethod(manager, "removeItemFromPlayer")) then
-		return 0
-	end
-
-	local remaining = math.max(0, math.floor(tonumber(wantedQuantity) or 0))
-	if (remaining <= 0) then
-		return 0
-	end
-
-	local ok, items = pcall(manager.getItems)
-	if (not ok or type(items) ~= "table") then
-		return 0
-	end
-
-	local moved = 0
-	for _, item in ipairs(items) do
-		if (remaining <= 0) then
-			break
-		end
-		if (assetMatchesItem(quote, item, item)) then
-			local filter = {
-				name = item.name,
-				fromSlot = item.slot,
-				count = math.min(remaining, item.count or remaining)
-			}
-			local okMove, result = pcall(manager.removeItemFromPlayer, direction, filter)
-			local movedNow = 0
-			if (okMove and type(result) == "number") then
-				movedNow = result
-			end
-			moved = moved + movedNow
-			remaining = remaining - movedNow
-		end
-	end
-
-	return moved
-end
-
-local function moveMatchingItemsToPlayer(manager, inventory, direction, quote, wantedQuantity)
-	if (manager == nil or inventory == nil or direction == nil or not hasMethod(manager, "addItemToPlayer")) then
+local function moveMatchingItemsBetweenInventories(sourceInventory, targetName, quote, wantedQuantity)
+	if (sourceInventory == nil or targetName == nil or targetName == "" or not hasMethod(sourceInventory, "pushItems")) then
 		return 0
 	end
 
@@ -626,18 +543,15 @@ local function moveMatchingItemsToPlayer(manager, inventory, direction, quote, w
 	end
 
 	local moved = 0
-	for slot, basic in pairs(inventory.list()) do
+	for slot, basic in pairs(sourceInventory.list()) do
 		if (remaining <= 0) then
 			break
 		end
-		local detail = getItemDetail(inventory, slot, basic)
+
+		local detail = getItemDetail(sourceInventory, slot, basic)
 		if (assetMatchesItem(quote, basic, detail)) then
-			local filter = {
-				name = (detail and detail.name) or basic.name,
-				fromSlot = slot,
-				count = math.min(remaining, basic.count or remaining)
-			}
-			local okMove, result = pcall(manager.addItemToPlayer, direction, filter)
+			local transferCount = math.min(remaining, basic.count or remaining)
+			local okMove, result = pcall(sourceInventory.pushItems, targetName, slot, transferCount)
 			local movedNow = 0
 			if (okMove and type(result) == "number") then
 				movedNow = result
@@ -648,23 +562,6 @@ local function moveMatchingItemsToPlayer(manager, inventory, direction, quote, w
 	end
 
 	return moved
-end
-
-local function validatePlayerInventoryAccess()
-	local manager = getInventoryManager()
-	if (manager == nil) then
-		return false, nil, t("error_missing_manager")
-	end
-
-	local okOwner, owner = pcall(manager.getOwner)
-	if (not okOwner or owner == nil or owner == "") then
-		return false, nil, t("error_inventory_link")
-	end
-	if (state.currentPlayer == nil or string.lower(tostring(owner)) ~= string.lower(tostring(state.currentPlayer))) then
-		return false, nil, t("error_inventory_owner")
-	end
-
-	return true, manager, nil
 end
 
 local function colorFromName(name)
@@ -1298,35 +1195,34 @@ local function setFlashMessage(text, success)
 end
 
 local function executeDepositOperation(quote, quantity)
-	local accessOk, manager, accessError = validatePlayerInventoryAccess()
-	local vaultInventory = getInventory(inventoryConfig.vaultPeripheral)
-	local bankChestDirection = inventoryConfig.bankChestDirection
+	local exchangeInventory, exchangeName = getInventory(inventoryConfig.exchangeChestPeripheral)
+	local vaultInventory, vaultName = getInventory(inventoryConfig.vaultPeripheral)
 
-	if (not accessOk) then
-		return false, accessError
+	if (exchangeInventory == nil or exchangeName == nil) then
+		return false, t("error_missing_exchange_chest")
 	end
 	if (vaultInventory == nil) then
 		return false, t("error_missing_bank_chest")
 	end
-	if (bankChestDirection == nil or bankChestDirection == "") then
+	if (vaultName == nil or vaultName == "") then
 		return false, t("error_missing_inventory")
 	end
-	if (countMatchingPlayerItems(manager, quote) < quantity) then
+	if (countMatchingItems(exchangeInventory, quote) < quantity) then
 		return false, t("error_missing_items")
 	end
 
-	local moved = moveMatchingItemsFromPlayer(manager, bankChestDirection, quote, quantity)
+	local moved = moveMatchingItemsBetweenInventories(exchangeInventory, vaultName, quote, quantity)
 	if (moved <= 0) then
 		return false, t("error_missing_items")
 	end
 	if (moved < quantity) then
-		moveMatchingItemsToPlayer(manager, vaultInventory, bankChestDirection, quote, moved)
+		moveMatchingItemsBetweenInventories(vaultInventory, exchangeName, quote, moved)
 		return false, t("error_partial_move")
 	end
 
 	local success, message = bankapi.depositAsset(state.accountKey, quote.id, moved)
 	if (not success) then
-		moveMatchingItemsToPlayer(manager, vaultInventory, bankChestDirection, quote, moved)
+		moveMatchingItemsBetweenInventories(vaultInventory, exchangeName, quote, moved)
 		return false, message or t("operation_error")
 	end
 
@@ -1334,17 +1230,16 @@ local function executeDepositOperation(quote, quantity)
 end
 
 local function executeWithdrawOperation(quote, quantity)
-	local accessOk, manager, accessError = validatePlayerInventoryAccess()
-	local vaultInventory = getInventory(inventoryConfig.vaultPeripheral)
-	local bankChestDirection = inventoryConfig.bankChestDirection
+	local exchangeInventory, exchangeName = getInventory(inventoryConfig.exchangeChestPeripheral)
+	local vaultInventory, vaultName = getInventory(inventoryConfig.vaultPeripheral)
 
-	if (not accessOk) then
-		return false, accessError
+	if (exchangeInventory == nil or exchangeName == nil) then
+		return false, t("error_missing_exchange_chest")
 	end
 	if (vaultInventory == nil) then
 		return false, t("error_missing_bank_chest")
 	end
-	if (bankChestDirection == nil or bankChestDirection == "") then
+	if (vaultName == nil or vaultName == "") then
 		return false, t("error_missing_inventory")
 	end
 	if (quantity > (quote.maxWithdraw or 0)) then
@@ -1357,18 +1252,18 @@ local function executeWithdrawOperation(quote, quantity)
 		return false, t("error_vault_blocked")
 	end
 
-	local moved = moveMatchingItemsToPlayer(manager, vaultInventory, bankChestDirection, quote, quantity)
+	local moved = moveMatchingItemsBetweenInventories(vaultInventory, exchangeName, quote, quantity)
 	if (moved <= 0) then
-		return false, t("error_player_inventory_full")
+		return false, t("error_output_blocked")
 	end
 	if (moved < quantity) then
-		moveMatchingItemsFromPlayer(manager, bankChestDirection, quote, moved)
+		moveMatchingItemsBetweenInventories(exchangeInventory, vaultName, quote, moved)
 		return false, t("error_partial_move")
 	end
 
 	local success, message = bankapi.withdrawAsset(state.accountKey, quote.id, quantity)
 	if (not success) then
-		moveMatchingItemsFromPlayer(manager, bankChestDirection, quote, quantity)
+		moveMatchingItemsBetweenInventories(exchangeInventory, vaultName, quote, quantity)
 		return false, message or t("operation_error")
 	end
 
